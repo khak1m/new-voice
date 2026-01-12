@@ -30,17 +30,26 @@ async def entrypoint(ctx: JobContext):
 Говори на русском языке.""",
     )
     
-    # Создаём сессию
+    # Создаём сессию с русским языком
     session = AgentSession(
-        stt=deepgram.STT(model="nova-2"),
-        tts=cartesia.TTS(model="sonic-2", voice="694f9389-aac1-45b6-b726-9d9369183238"),
+        # Deepgram с русским языком
+        stt=deepgram.STT(
+            model="nova-2",
+            language="ru",  # Русский язык для распознавания
+        ),
+        # Cartesia с мультиязычным голосом (поддерживает русский)
+        tts=cartesia.TTS(
+            model="sonic-2",
+            voice="794f9389-aac1-45b6-b726-9d9369183238",  # Мультиязычный голос
+            language="ru",  # Русский язык для синтеза
+        ),
         vad=silero.VAD.load(),
     )
     
-    # Запускаем сессию (room как keyword argument)
+    # Запускаем сессию
     await session.start(agent, room=ctx.room)
     
-    # Приветствие
+    # Приветствие на русском
     await session.say("Здравствуйте! Чем могу помочь?")
     
     print("[Agent] Агент запущен, ожидаю голос...")
