@@ -46,22 +46,15 @@
 
 ## Текущий статус
 
-**Scenario Engine готов на 95%!**
-**Voice Pipeline почти готов — Deepgram и Cartesia работают!**
+**🎉 ВСЕ СЕРВИСЫ РАБОТАЮТ!**
 
-**Сделано:**
-- Scenario Engine (все компоненты)
-- Ollama LLM на сервере
-- Deepgram STT ✅ подключен
-- Cartesia TTS ✅ подключен (3 голоса)
-- LiveKit — нужно доустановить `livekit-api`
-
-**API ключи в .env на сервере:**
-- DEEPGRAM_API_KEY ✅
-- CARTESIA_API_KEY ✅
-- LIVEKIT_URL, API_KEY, API_SECRET ✅
+**Протестировано на сервере:**
+- ✅ Ollama LLM (qwen2:1.5b)
+- ✅ Deepgram STT 
+- ✅ Cartesia TTS (3 голоса)
+- ✅ LiveKit Cloud
 
 **Следующее:**
-1. На сервере: `pip install livekit-api`
-2. Запустить: `python scripts/test_services.py`
-3. Если всё ок — запустить Voice Agent
+1. Установить livekit-agents: `pip install "livekit-agents[deepgram,cartesia,silero]~=1.2"`
+2. Запустить Voice Agent
+3. Протестировать голосовой диалог
