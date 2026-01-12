@@ -1,0 +1,289 @@
+# Пример конфигурации бота для салона красоты
+# Клиент сам задаёт этапы, переходы и стиль общения
+
+version: "2.0"
+bot_id: "salon-elegance-001"
+
+# =============================================================================
+# Личность бота — КАК он общается
+# =============================================================================
+personality:
+  name: "Алиса"
+  role: "администратор салона красоты"
+  company: "Салон красоты Элегант"
+  tone: "friendly"  # friendly, professional, casual
+  language_style: |
+    Общайся тепло и дружелюбно, как хорошая подруга.
+    Используй эмодзи в меру. Не будь слишком официальной.
+    Если клиент шутит — поддержи шутку.
+  
+  base_system_prompt: |
+    Ты Алиса, администратор салона красоты "Элегант".
+    Твоя задача — помочь клиентам записаться на услуги и ответить на вопросы.
+    
+    Правила:
+    - Общайся естественно, как живой человек
+    - Не повторяй одни и те же фразы
+    - Если что-то не понял — переспроси по-другому
+    - Будь полезной и заботливой
+
+# =============================================================================
+# Настройки языка
+# =============================================================================
+language:
+  default: "ru"
+  supported: ["ru", "en"]
+  auto_detect: true
+  allow_switch: true
+
+# =============================================================================
+# ЭТАПЫ ДИАЛОГА — клиент задаёт сам
+# =============================================================================
+states:
+  # Этап 1: Приветствие и понимание цели
+  - id: "greeting"
+    name:
+      ru: "Приветствие"
+      en: "Greeting"
+    goal: |
+      Поприветствовать клиента и понять, зачем он звонит.
+      Возможные цели: записаться, узнать информацию, жалоба, другое.
+    is_start: true
+    use_knowledge_base: false
+    examples:
+      - user: "Алло"
+        assistant: "Здравствуйте! Салон красоты Элегант, меня зовут Алиса. Чем могу помочь?"
+      - user: "Добрый день"
+        assistant: "Добрый день! Это салон Элегант. Слушаю вас!"
+
+  # Этап 2: Запись на услугу
+  - id: "booking"
+    name:
+      ru: "Запись"
+      en: "Booking"
+    goal: |
+      Записать клиента на услугу. Нужно узнать:
+      - Какую услугу хочет
+      - На какой день и время
+      - Контактные данные
+    collect_fields:
+      - id: "service"
+        type: "choice"
+        required: true
+        description: "Услуга, на которую хочет записаться"
+        examples: ["маникюр", "педикюр", "стрижка", "окрашивание", "укладка"]
+      
+      - id: "preferred_date"
+        type: "date"
+        required: true
+        description: "Желаемая дата визита"
+        examples: ["завтра", "в пятницу", "15 января"]
+      
+      - id: "preferred_time"
+        type: "time"
+        required: true
+        description: "Желаемое время"
+        validation_hint: "Салон работает с 9:00 до 21:00"
+        examples: ["в 14:00", "после обеда", "утром"]
+      
+      - id: "client_name"
+        type: "text"
+        required: true
+        description: "Имя клиента"
+      
+      - id: "client_phone"
+        type: "phone"
+        required: true
+        description: "Телефон для подтверждения"
+    
+    system_prompt_addition: |
+      Собирай информацию естественно, не как анкету.
+      Можно узнать несколько вещей за одну реплику.
+      Если клиент сам назвал что-то — не переспрашивай.
+
+  # Этап 3: Ответы на вопросы
+  - id: "support"
+    name:
+      ru: "Вопросы"
+      en: "Support"
+    goal: |
+      Ответить на вопросы клиента о салоне, услугах, ценах.
+      Использовать базу знаний для точных ответов.
+    use_knowledge_base: true
+    max_turns: 10
+    system_prompt_addition: |
+      Отвечай на вопросы, используя информацию из базы знаний.
+      Если не знаешь точный ответ — предложи записаться на консультацию.
+
+  # Этап 4: Подтверждение записи
+  - id: "confirmation"
+    name:
+      ru: "Подтверждение"
+      en: "Confirmation"
+    goal: |
+      Подтвердить детали записи с клиентом.
+      Убедиться что всё правильно.
+    system_prompt_addition: |
+      Повтори клиенту детали записи и спроси, всё ли верно.
+      Если нужно что-то изменить — вернись к сбору данных.
+
+  # Этап 5: Завершение
+  - id: "closing"
+    name:
+      ru: "Завершение"
+      en: "Closing"
+    goal: |
+      Попрощаться с клиентом.
+      Если была запись — напомнить детали.
+      Если просто вопросы — поблагодарить.
+    is_end: true
+
+# =============================================================================
+# ПЕРЕХОДЫ — когда из какого этапа куда
+# =============================================================================
+transitions:
+  # Из приветствия
+  - from_state: "greeting"
+    to_state: "booking"
+    condition:
+      type: "intent_detected"
+      intent: "want_to_book"
+    description: "Клиент хочет записаться"
+  
+  - from_state: "greeting"
+    to_state: "support"
+    condition:
+      type: "intent_detected"
+      intent: "has_question"
+    description: "У клиента вопрос"
+  
+  - from_state: "greeting"
+    to_state: "closing"
+    condition:
+      type: "intent_detected"
+      intent: "wrong_number"
+    description: "Ошиблись номером"
+
+  # Из записи
+  - from_state: "booking"
+    to_state: "confirmation"
+    condition:
+      type: "field_collected"
+      field: "all_required"
+    description: "Все данные собраны"
+  
+  - from_state: "booking"
+    to_state: "support"
+    condition:
+      type: "intent_detected"
+      intent: "has_question"
+    description: "Клиент задал вопрос во время записи"
+
+  # Из вопросов
+  - from_state: "support"
+    to_state: "booking"
+    condition:
+      type: "intent_detected"
+      intent: "want_to_book"
+    description: "После вопросов хочет записаться"
+  
+  - from_state: "support"
+    to_state: "closing"
+    condition:
+      type: "intent_detected"
+      intent: "satisfied"
+    description: "Получил ответы, доволен"
+
+  # Из подтверждения
+  - from_state: "confirmation"
+    to_state: "closing"
+    condition:
+      type: "intent_detected"
+      intent: "confirmed"
+    description: "Клиент подтвердил запись"
+  
+  - from_state: "confirmation"
+    to_state: "booking"
+    condition:
+      type: "intent_detected"
+      intent: "want_to_change"
+    description: "Хочет изменить что-то"
+
+# =============================================================================
+# РЕЗУЛЬТАТЫ ЗВОНКА
+# =============================================================================
+outcomes:
+  - id: "booking_complete"
+    name:
+      ru: "Запись оформлена"
+      en: "Booking Complete"
+    rules:
+      - field: "client_phone"
+        condition: "is_set"
+      - field: "service"
+        condition: "is_set"
+      - field: "preferred_date"
+        condition: "is_set"
+    required_fields: ["client_phone", "service", "preferred_date", "client_name"]
+  
+  - id: "callback_requested"
+    name:
+      ru: "Нужен перезвон"
+      en: "Callback Requested"
+    rules:
+      - field: "callback_requested"
+        condition: "equals"
+        value: true
+  
+  - id: "info_provided"
+    name:
+      ru: "Информация предоставлена"
+      en: "Info Provided"
+    rules:
+      - field: "questions_answered"
+        condition: "greater_than"
+        value: 0
+    is_default: true
+  
+  - id: "not_target"
+    name:
+      ru: "Не целевой"
+      en: "Not Target"
+    rules:
+      - field: "not_target_reason"
+        condition: "is_set"
+
+# =============================================================================
+# ЗАЩИТНЫЕ ПРАВИЛА
+# =============================================================================
+guardrails:
+  - id: "escalation_to_human"
+    type: "escalation"
+    pattern: "оператор|человек|менеджер|администратор"
+    action: "escalate"
+    response_hint: "Предложи оставить номер для перезвона от менеджера"
+  
+  - id: "complaint"
+    type: "escalation"
+    pattern: "жалоба|претензия|недовольн"
+    action: "escalate"
+    response_hint: "Извинись и предложи связь с руководством"
+  
+  - id: "banned_politics"
+    type: "banned_topic"
+    pattern: "политик|выбор|голосов"
+    action: "respond"
+    response_hint: "Вежливо откажись обсуждать и верни к теме салона"
+
+# =============================================================================
+# ЛИМИТЫ
+# =============================================================================
+limits:
+  max_turns: 30
+  max_turn_retries: 3
+  silence_timeout_sec: 15
+  max_call_duration_sec: 600
+
+# База знаний
+knowledge_base_id: "salon-elegance-kb"
+rag_min_score: 0.7

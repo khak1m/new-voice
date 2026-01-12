@@ -5,9 +5,10 @@ fastapi==0.109.0
 uvicorn[standard]==0.27.0
 python-multipart==0.0.6
 
-# LLM
-openai==1.12.0
-anthropic==0.18.0
+# LLM Providers
+groq==0.4.0              # Groq API (Llama 3.1) - MVP
+openai==1.12.0           # OpenAI (fallback)
+anthropic==0.18.0        # Claude (fallback)
 
 # LiveKit
 livekit==0.11.0
@@ -31,6 +32,7 @@ pydantic==2.6.0
 pydantic-settings==2.1.0
 httpx==0.26.0
 aiofiles==23.2.1
+pyyaml==6.0.1
 
 # Audio processing
 numpy==1.26.0
