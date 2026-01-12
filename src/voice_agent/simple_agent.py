@@ -37,8 +37,8 @@ async def entrypoint(ctx: JobContext):
         vad=silero.VAD.load(),
     )
     
-    # Запускаем сессию
-    await session.start(ctx.room, agent)
+    # Запускаем сессию (room как keyword argument)
+    await session.start(agent, room=ctx.room)
     
     # Приветствие
     await session.say("Здравствуйте! Чем могу помочь?")
