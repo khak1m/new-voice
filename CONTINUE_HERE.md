@@ -47,21 +47,21 @@
 ## Текущий статус
 
 **Scenario Engine готов на 95%!**
-**LLM провайдер готов — нужно установить Ollama на сервер**
+**Voice Pipeline почти готов — Deepgram и Cartesia работают!**
 
 **Сделано:**
-- Модели данных (models.py)
-- Загрузчик конфигов (config_loader.py)
-- StateMachine — переходы между этапами
-- ContextManager — контекст звонка
-- FieldExtractor — извлечение данных из речи
-- LanguageDetector — определение языка ru/en
-- OutcomeClassifier — классификация результатов
-- ScenarioEngine — основной движок
-- OllamaLLMProvider — провайдер для локального LLM
-- Пример конфига для салона красоты
+- Scenario Engine (все компоненты)
+- Ollama LLM на сервере
+- Deepgram STT ✅ подключен
+- Cartesia TTS ✅ подключен (3 голоса)
+- LiveKit — нужно доустановить `livekit-api`
+
+**API ключи в .env на сервере:**
+- DEEPGRAM_API_KEY ✅
+- CARTESIA_API_KEY ✅
+- LIVEKIT_URL, API_KEY, API_SECRET ✅
 
 **Следующее:**
-- Установить Ollama на сервер (см. docs/04_ollama_setup.md)
-- Протестировать LLM
-- Voice Pipeline (LiveKit интеграция)
+1. На сервере: `pip install livekit-api`
+2. Запустить: `python scripts/test_services.py`
+3. Если всё ок — запустить Voice Agent
