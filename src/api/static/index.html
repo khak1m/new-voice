@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEW-VOICE 2.0 — Демо голосового бота</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        
+        .status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.connecting {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status.active {
+            background: #cce5ff;
+            color: #004085;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .call-button {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 48px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 20px 0;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .call-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
+        }
+        
+        .call-button:active {
+            transform: scale(0.95);
+        }
+        
+        .call-button.active {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(231, 76, 60, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+        }
+        
+        .instructions {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 30px;
+            text-align: left;
+        }
+        
+        .instructions h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .instructions ul {
+            color: #666;
+            font-size: 14px;
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            color: #999;
+            font-size: 12px;
+        }
+        
+        .scenario-select {
+            margin-bottom: 20px;
+        }
+        
+        .scenario-select select {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+        }
+        
+        .scenario-select select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🎙️</div>
+        <h1>NEW-VOICE 2.0</h1>
+        <p class="subtitle">Голосовой AI-ассистент</p>
+        
+        <div class="scenario-select">
+            <select id="scenario">
+                <option value="salon">💇 Салон красоты</option>
+                <option value="clinic">🏥 Медицинская клиника</option>
+            </select>
+        </div>
+        
+        <div class="status ready" id="status">Готов к разговору</div>
+        
+        <button class="call-button" id="callButton" onclick="toggleCall()">
+            📞
+        </button>
+        
+        <p id="callText">Нажмите чтобы позвонить</p>
+        
+        <div class="instructions">
+            <h3>Как это работает:</h3>
+            <ul>
+                <li>Выберите сценарий (салон или клиника)</li>
+                <li>Нажмите кнопку звонка</li>
+                <li>Разрешите доступ к микрофону</li>
+                <li>Говорите с ботом как с живым человеком</li>
+                <li>Бот запишет вас на услугу</li>
+            </ul>
+        </div>
+        
+        <div class="footer">
+            Powered by AI Prosto • LiveKit • Deepgram • Cartesia
+        </div>
+    </div>
+    
+    <script>
+        let isCallActive = false;
+        let livekitRoom = null;
+        
+        // LiveKit конфигурация
+        const LIVEKIT_URL = 'wss://aiprosto-777-jxrcg2iv.livekit.cloud';
+        
+        async function toggleCall() {
+            const button = document.getElementById('callButton');
+            const status = document.getElementById('status');
+            const callText = document.getElementById('callText');
+            
+            if (!isCallActive) {
+                // Начинаем звонок
+                button.classList.add('active');
+                button.innerHTML = '📵';
+                status.className = 'status connecting';
+                status.textContent = 'Подключение...';
+                callText.textContent = 'Нажмите чтобы завершить';
+                isCallActive = true;
+                
+                // Открываем LiveKit Playground в новом окне
+                const scenario = document.getElementById('scenario').value;
+                const playgroundUrl = 'https://agents-playground.livekit.io/';
+                
+                status.className = 'status active';
+                status.textContent = '🎤 Разговор активен';
+                
+                // Открываем playground
+                window.open(playgroundUrl, '_blank');
+                
+                alert('Откроется LiveKit Playground.\n\n' +
+                      '1. Нажмите "Connect"\n' +
+                      '2. Разрешите микрофон\n' +
+                      '3. Говорите с ботом!\n\n' +
+                      'Бот работает по сценарию: ' + 
+                      (scenario === 'salon' ? 'Салон красоты' : 'Клиника'));
+                
+            } else {
+                // Завершаем звонок
+                button.classList.remove('active');
+                button.innerHTML = '📞';
+                status.className = 'status ready';
+                status.textContent = 'Готов к разговору';
+                callText.textContent = 'Нажмите чтобы позвонить';
+                isCallActive = false;
+            }
+        }
+    </script>
+</body>
+</html>

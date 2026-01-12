@@ -6,11 +6,14 @@
 """
 
 import os
+from pathlib import Path
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from .routers import bots, knowledge_bases, calls, leads, health
 
@@ -42,6 +45,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Статические файлы
+static_dir = Path(__file__).parent / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
 # Подключаем роутеры
 app.include_router(health.router, tags=["Health"])
 app.include_router(bots.router, prefix="/api/bots", tags=["Bots"])
@@ -52,7 +60,11 @@ app.include_router(leads.router, prefix="/api/leads", tags=["Leads"])
 
 @app.get("/")
 async def root():
-    """Корневой эндпоинт."""
+    """Демо страница."""
+    static_dir = Path(__file__).parent / "static"
+    index_file = static_dir / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
     return {
         "name": "NEW-VOICE 2.0 API",
         "version": "2.0.0",
