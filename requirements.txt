@@ -13,11 +13,20 @@ openai==1.12.0           # OpenAI (fallback)
 livekit==0.17.0
 livekit-agents[deepgram,cartesia,silero]~=1.2
 
-# Vector Database
-qdrant-client==1.7.0
+
 
 # Database
-supabase==2.3.0
+sqlalchemy[asyncio]==2.0.25
+psycopg2-binary==2.9.9       # Синхронный PostgreSQL драйвер
+asyncpg==0.29.0              # Асинхронный PostgreSQL драйвер
+alembic==1.13.1              # Миграции БД
+
+# Redis
+redis==5.0.1
+aioredis==2.0.1
+
+# Qdrant
+qdrant-client==1.7.0
 
 # Utils
 python-dotenv==1.0.0
