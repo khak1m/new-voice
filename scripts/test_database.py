@@ -23,21 +23,22 @@ def test_sync_connection():
     
     try:
         from src.database.connection import get_db, get_database_url
+        from sqlalchemy import text
         
         url = get_database_url(async_mode=False)
         print(f"   URL: {url.replace(os.getenv('DB_PASSWORD', ''), '***')}")
         
         with get_db() as db:
-            result = db.execute("SELECT version()").fetchone()
+            result = db.execute(text("SELECT version()")).fetchone()
             print(f"   ✅ PostgreSQL: {result[0][:50]}...")
             
             # Проверяем таблицы
-            result = db.execute("""
+            result = db.execute(text("""
                 SELECT table_name 
                 FROM information_schema.tables 
                 WHERE table_schema = 'public'
                 ORDER BY table_name
-            """).fetchall()
+            """)).fetchall()
             
             tables = [r[0] for r in result]
             print(f"   📋 Таблицы ({len(tables)}): {', '.join(tables)}")
