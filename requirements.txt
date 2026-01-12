@@ -6,19 +6,12 @@ uvicorn[standard]==0.27.0
 python-multipart==0.0.6
 
 # LLM Providers
-groq==0.4.0              # Groq API (Llama 3.1) - MVP
+groq==0.4.0              # Groq API (заблокирован в РФ)
 openai==1.12.0           # OpenAI (fallback)
-anthropic==0.18.0        # Claude (fallback)
 
-# LiveKit
-livekit==0.11.0
-livekit-agents==0.7.0
-
-# Speech-to-Text
-deepgram-sdk==3.1.0
-
-# Text-to-Speech
-cartesia==1.0.0
+# LiveKit Agents
+livekit==0.17.0
+livekit-agents[deepgram,cartesia,silero]~=1.2
 
 # Vector Database
 qdrant-client==1.7.0

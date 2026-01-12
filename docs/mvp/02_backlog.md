@@ -34,7 +34,8 @@
 - [x] Task: Create abstract LLM interface
 - [x] Task: Implement Ollama provider (локальный)
 - [x] Task: Implement Groq provider (заблокирован в РФ)
-- [ ] Task: Установить Ollama на сервер
+- [x] Task: Установить Ollama на сервер ✅
+- [x] Task: Протестировать на сервере ✅
 - [ ] Task: Add streaming support
 - [ ] Task: Add error handling and retries
 
