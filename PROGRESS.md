@@ -54,7 +54,7 @@
 - [x] Определение языка (language_detector.py)
 - [x] Классификация результатов (outcome_classifier.py)
 - [x] Основной движок (engine.py)
-- [ ] Интеграция с Voice Agent
+- [x] **Интеграция с Voice Agent (scenario_voice_agent.py)** ✅
 
 ### Этап 5: Database Setup ✅ ГОТОВО!
 - [x] PostgreSQL добавлен в docker-compose.yml
@@ -96,7 +96,7 @@
 
 ```
 Инфраструктура:  ██████████ 100%
-Scenario Engine: █████████░ 95%
+Scenario Engine: ██████████ 100% ✅
 Voice Pipeline:  ██████████ 100% ✅
 Provider Layer:  ██████████ 100% ✅
 Database:        ██████████ 100% ✅
@@ -113,8 +113,9 @@ Admin UI:        ░░░░░░░░░░ 0%
 ```
 src/
 ├── voice_agent/
-│   ├── simple_agent.py   ✅ Рабочий голосовой агент
-│   └── agent.py          Расширенный агент (в разработке)
+│   ├── simple_agent.py          ✅ Простой агент для тестов
+│   ├── scenario_voice_agent.py  ✅ Агент со сценариями
+│   └── agent.py                 Расширенный агент
 ├── scenario_engine/
 │   ├── models.py         ✅ Модели данных
 │   ├── config_loader.py  ✅ Загрузка YAML/JSON
@@ -124,13 +125,20 @@ src/
 │   ├── language_detector.py ✅ Определение языка
 │   ├── outcome_classifier.py ✅ Классификация
 │   └── engine.py         ✅ Основной движок
+├── database/
+│   ├── models.py         ✅ SQLAlchemy модели
+│   └── connection.py     ✅ Подключение к PostgreSQL
 ├── providers/
 │   ├── ollama_llm.py     ✅ Ollama провайдер
 │   └── groq_llm.py       ⚠️ Заблокирован в РФ
 scripts/
 ├── test_services.py      ✅ Тест всех сервисов
+├── test_database.py      ✅ Тест PostgreSQL
 ├── test_ollama.py        ✅ Тест Ollama
 examples/
+├── scenarios/
+│   ├── salon_scenario.yaml   ✅ Салон красоты
+│   └── clinic_scenario.yaml  ✅ Медицинская клиника
 └── salon_bot_config.yaml ✅ Пример конфига
 ```
 
@@ -152,7 +160,15 @@ examples/
 # На сервере
 cd /root/new-voice
 source venv/bin/activate
+
+# Простой агент (без сценария)
 python -m src.voice_agent.simple_agent dev
+
+# Агент со сценарием салона
+SCENARIO_PATH=examples/scenarios/salon_scenario.yaml python -m src.voice_agent.scenario_voice_agent dev
+
+# Агент со сценарием клиники
+SCENARIO_PATH=examples/scenarios/clinic_scenario.yaml python -m src.voice_agent.scenario_voice_agent dev
 ```
 
 Тестирование: https://agents-playground.livekit.io/
