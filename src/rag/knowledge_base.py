@@ -283,11 +283,11 @@ class KnowledgeBaseManager:
         query_embedding = self.embeddings.embed(query)
         
         # Ищем в Qdrant
-        results = self.client.search(
+        results = self.client.query_points(
             collection_name=collection_name,
-            query_vector=query_embedding,
+            query=query_embedding,
             limit=top_k,
-        )
+        ).points
         
         # Фильтруем и форматируем
         search_results = []
