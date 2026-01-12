@@ -10,31 +10,9 @@ from dotenv import load_dotenv
 
 from livekit.agents import cli, WorkerOptions, JobContext
 from livekit.agents.voice import Agent, AgentSession
-from livekit.agents.llm import LLM
-from livekit.plugins import deepgram, cartesia, silero
-from openai import AsyncOpenAI
+from livekit.plugins import deepgram, cartesia, silero, openai
 
 load_dotenv()
-
-
-class OllamaLLM(LLM):
-    """Ollama LLM через OpenAI-совместимый API."""
-    
-    def __init__(self, model: str = "qwen2:1.5b"):
-        super().__init__()
-        self._model = model
-        self._client = AsyncOpenAI(
-            base_url="http://localhost:11434/v1",
-            api_key="ollama",  # Ollama не требует ключ
-        )
-    
-    async def chat(self, messages: list, **kwargs):
-        response = await self._client.chat.completions.create(
-            model=self._model,
-            messages=messages,
-            **kwargs
-        )
-        return response
 
 
 async def entrypoint(ctx: JobContext):
@@ -52,16 +30,20 @@ async def entrypoint(ctx: JobContext):
 Говори на русском языке.""",
     )
     
-    # Создаём сессию с LLM, STT, TTS
+    # Ollama через OpenAI-совместимый плагин
+    llm = openai.LLM(
+        model="qwen2:1.5b",
+        base_url="http://localhost:11434/v1",
+        api_key="ollama",
+    )
+    
+    # Создаём сессию
     session = AgentSession(
-        # Ollama LLM для генерации ответов
-        llm=OllamaLLM(model="qwen2:1.5b"),
-        # Deepgram с русским языком
+        llm=llm,
         stt=deepgram.STT(
             model="nova-2",
             language="ru",
         ),
-        # Cartesia с русским языком
         tts=cartesia.TTS(
             model="sonic-2",
             voice="794f9389-aac1-45b6-b726-9d9369183238",
