@@ -18,10 +18,9 @@
 | **TTS** | Cartesia (sonic-2) | ✅ Работает |
 | **Real-time** | LiveKit Cloud | ✅ Работает |
 | **VAD** | Silero | ✅ Работает |
-| **Database** | PostgreSQL + Qdrant + Redis | ✅ Готово |
+| **Database** | PostgreSQL + Qdrant + Redis | ✅ Работает |
 | **Telephony** | MTS Exolve | ⏳ Следующий этап |
 | **RAG** | Qdrant | ⏳ Планируется |
-| **Database** | PostgreSQL / Supabase | ⏳ Планируется |
 
 ---
 
