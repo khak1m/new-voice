@@ -191,7 +191,7 @@ class Document(Base):
     
     content = Column(Text)
     content_hash = Column(String(64))
-    metadata = Column(JSON, default=dict)
+    extra_data = Column(JSON, default=dict)  # renamed from metadata (reserved)
     
     is_indexed = Column(Boolean, default=False)
     indexed_at = Column(DateTime(timezone=True))
@@ -268,7 +268,7 @@ class Message(Base):
     role = Column(String(20), nullable=False)  # user, assistant, system
     content = Column(Text, nullable=False)
     state_id = Column(String(100))
-    metadata = Column(JSON, default=dict)
+    extra_data = Column(JSON, default=dict)  # renamed from metadata (reserved)
     
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     
