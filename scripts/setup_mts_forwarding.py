@@ -26,8 +26,13 @@ def setup_call_forwarding():
         print("MTS_EXOLVE_API_KEY=ваш_api_ключ")
         return False
     
+    # Убираем "Bearer " если он уже есть в ключе
+    api_key = MTS_API_KEY
+    if api_key.startswith("Bearer "):
+        api_key = api_key[7:]  # Убираем "Bearer "
+    
     headers = {
-        "Authorization": f"Bearer {MTS_API_KEY}",
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
     
