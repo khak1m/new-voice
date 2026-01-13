@@ -1,0 +1,15 @@
+[Unit]
+Description=NEW-VOICE API Server
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/new-voice
+Environment="PATH=/root/new-voice/venv/bin"
+ExecStart=/root/new-voice/venv/bin/uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
