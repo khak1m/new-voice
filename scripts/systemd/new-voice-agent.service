@@ -6,11 +6,12 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/root/new-voice
-Environment="PATH=/root/new-voice/venv/bin"
-Environment="SCENARIO_PATH=examples/scenarios/salon_scenario.yaml"
-ExecStart=/root/new-voice/venv/bin/python -m src.voice_agent.scenario_voice_agent dev
+Environment="PATH=/root/new-voice/venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/root/new-voice/venv/bin/python -m src.voice_agent.simple_agent dev
 Restart=always
-RestartSec=5
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
