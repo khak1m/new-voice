@@ -30,12 +30,25 @@ async def entrypoint(ctx: JobContext):
 Говори на русском языке.""",
     )
     
-    # Ollama через OpenAI-совместимый плагин
-    llm = openai.LLM(
-        model="qwen2:1.5b",
-        base_url="http://localhost:11434/v1",
-        api_key="ollama",
-    )
+    # Выбор LLM: Groq (быстро) или Ollama (локально)
+    use_groq = os.getenv("USE_GROQ", "true").lower() == "true"
+    
+    if use_groq and os.getenv("GROQ_API_KEY"):
+        # Groq — очень быстрый, ~300ms latency
+        llm = openai.LLM(
+            model="llama-3.1-8b-instant",  # Быстрая модель
+            base_url="https://api.groq.com/openai/v1",
+            api_key=os.getenv("GROQ_API_KEY"),
+        )
+        print("[Agent] Используем Groq LLM (fast)")
+    else:
+        # Ollama — локально, медленнее
+        llm = openai.LLM(
+            model="qwen2:1.5b",
+            base_url="http://localhost:11434/v1",
+            api_key="ollama",
+        )
+        print("[Agent] Используем Ollama LLM (local)")
     
     # Создаём сессию
     session = AgentSession(
