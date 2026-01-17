@@ -114,8 +114,8 @@ async def test_telemetry_service():
         if metrics:
             print("✅ Метрики агрегированы")
             print(f"   Turn count: {metrics.turn_count}")
-            print(f"   Avg TTFB STT: {metrics.avg_ttfb_stt:.2f}ms")
-            print(f"   Avg Latency LLM: {metrics.avg_latency_llm:.2f}ms")
+            print(f"   Avg TTFB STT: {metrics.ttfb_stt_avg:.2f}ms")
+            print(f"   Avg Latency LLM: {metrics.latency_llm_avg:.2f}ms")
             print(f"   Total LLM tokens: {metrics.llm_input_tokens + metrics.llm_output_tokens}")
             print(f"   Interruption rate: {metrics.interruption_rate:.2%}")
         else:
@@ -124,8 +124,8 @@ async def test_telemetry_service():
         
         # Проверка агрегации
         assert metrics.turn_count == 2
-        assert metrics.avg_ttfb_stt == 150.5  # Только turn1 имеет STT
-        assert metrics.avg_latency_llm == 275.15  # (250.3 + 300.0) / 2
+        assert metrics.ttfb_stt_avg == 150.5  # Только turn1 имеет STT
+        assert metrics.latency_llm_avg == 275.15  # (250.3 + 300.0) / 2
         assert metrics.llm_input_tokens == 40  # 10 + 30
         assert metrics.llm_output_tokens == 60  # 20 + 40
         assert metrics.interruption_count == 1
