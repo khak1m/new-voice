@@ -87,7 +87,7 @@
 - [x] LiveKit Inbound Trunk обновлён (allowed: 62.113.37.156)
 - [x] **🎉 Тестовый звонок прошёл успешно!**
 
-### Этап 9: Enterprise Platform ✅ НАЧАТО!
+### Этап 9: Enterprise Platform ✅ В ПРОЦЕССЕ!
 - [x] **Спецификация создана** (.kiro/specs/enterprise-platform/)
   - [x] Requirements.md — 9 требований в EARS формате
   - [x] Design.md — архитектура с 10 correctness properties
@@ -108,18 +108,65 @@
     - get_for_call() — оптимизированный запрос для инициализации звонка
     - Автоматический инкремент версии при изменении config
     - Все операции async с error handling и rollback
-  - [x] Тесты (scripts/test_skillbase_service.py)
-    - ✅ Schema validation tests passed (100%)
-    - ⚠️ Service CRUD tests require DB connection (run on server)
+  - [x] SystemPromptBuilder (src/prompts/skillbase_prompt_builder.py)
+    - Конвертация SkillbaseConfig → system prompt
+    - Поддержка linear и graph flows
+    - Двухуровневая система: base prompt + skillbase config
+  - [x] Skillbase VoiceAgent (src/voice_agent/skillbase_voice_agent.py)
+    - Загрузка Skillbase из PostgreSQL
+    - Генерация system prompt через SystemPromptBuilder
+    - Создание LLM/STT/TTS из конфигурации
+    - Интеграция с ScenarioEngine
+  - [x] SkillbaseToScenarioAdapter (src/adapters/skillbase_to_scenario.py)
+    - Конвертация SkillbaseConfig → ScenarioConfig
+    - Поддержка linear и graph flows
+    - Конвертация context, safety_rules, facts
+  - [x] Function Calling Tools (src/tools/)
+    - Base classes: Tool, ToolResult, ToolRegistry
+    - CalendarTool: check_availability, book_appointment
+    - TransferTool: transfer_to_operator
+    - Auto-registration и OpenAI schema generation
+  - [x] Тесты (scripts/)
+    - ✅ test_skillbase_service.py — Schema validation (100%)
+    - ✅ test_skillbase_agent.py — Agent integration (100%)
+    - ✅ test_skillbase_scenario_adapter.py — Adapter (100%)
+    - ✅ test_tools.py — Function calling tools (100%)
+- [x] **Phase 3: Deep Observability** ✅ ЗАВЕРШЕНО
+  - [x] TelemetryService (src/telemetry/telemetry_service.py)
+    - In-memory metrics buffer (thread-safe)
+    - record_turn() — неблокирующая запись
+    - finalize_call() — агрегация и персистенция
+    - Поддержка CallMetrics и CallLog таблиц
+  - [x] MetricCollector (src/telemetry/metric_collector.py)
+    - Timing hooks для STT, LLM, TTS
+    - TTFB (Time To First Byte) measurements
+    - EOU latency (End Of Utterance) tracking
+    - TurnContext для state tracking
+  - [x] CostCalculator (src/telemetry/cost_calculator.py)
+    - PricingConfig с настраиваемыми ценами
+    - Расчёт по компонентам (STT, LLM, TTS, LiveKit)
+    - Decimal precision для денежных расчётов
+    - Cost estimation per minute
+  - [x] QualityMetrics (src/telemetry/quality_metrics.py)
+    - InterruptionTracker — детекция прерываний
+    - OutcomeClassifier — классификация исходов
+    - SentimentAnalyzer — placeholder для будущего
+    - QualityMetricsCollector — агрегация метрик
+  - [x] Тесты (scripts/test_telemetry.py)
+    - ✅ TelemetryService — PASSED (100%)
+    - ✅ MetricCollector — PASSED (100%)
+    - ✅ CostCalculator — PASSED (100%)
+    - ✅ QualityMetrics — PASSED (100%)
+    - **Результат: 4/4 тестов пройдено (100%)**
 
 ---
 
 ## 🔜 СЛЕДУЮЩИЕ ЗАДАЧИ
 
 ### 1. Enterprise Platform (продолжение)
+- [x] **Phase 1: Database Schema Migration** ✅ ЗАВЕРШЕНО
 - [x] **Phase 2: Skillbase Management** ✅ ЗАВЕРШЕНО
-- [ ] **Phase 2.1: VoiceAgent Integration** — SystemPromptBuilder, интеграция с VoiceAgent
-- [ ] **Phase 3: Deep Observability** — TelemetryService, MetricCollector, CostCalculator
+- [x] **Phase 3: Deep Observability** ✅ ЗАВЕРШЕНО
 - [ ] **Phase 4: Campaign Manager** — CampaignService, CallTask management, background workers
 - [ ] **Phase 5: API Layer** — CRUD endpoints, file upload, WebSocket monitoring
 
@@ -158,7 +205,7 @@ Database:           ██████████ 100% ✅
 RAG System:         ██████████ 100% ✅
 Admin API:          ██████████ 100% ✅
 Телефония:          ██████████ 100% ✅ РАБОТАЕТ!
-Enterprise Platform: ████░░░░░░ 40% (Phase 1-2 завершены)
+Enterprise Platform: ██████░░░░ 60% (Phase 1-3 завершены)
 Admin UI:           ░░░░░░░░░░ 0%
 ```
 
@@ -200,6 +247,19 @@ src/
 │   └── skillbase_schemas.py     Валидация Skillbase config
 ├── services/                    ✅ Business logic (Enterprise Platform)
 │   └── skillbase_service.py     CRUD для Skillbase
+├── prompts/                     ✅ Prompt builders (Enterprise Platform)
+│   └── skillbase_prompt_builder.py  SystemPromptBuilder
+├── adapters/                    ✅ Adapters (Enterprise Platform)
+│   └── skillbase_to_scenario.py     SkillbaseConfig → ScenarioConfig
+├── tools/                       ✅ Function calling tools (Enterprise Platform)
+│   ├── base.py                  Tool, ToolResult, ToolRegistry
+│   ├── calendar_tool.py         CalendarTool
+│   └── transfer_tool.py         TransferTool
+├── telemetry/                   ✅ Observability (Enterprise Platform Phase 3)
+│   ├── telemetry_service.py     TelemetryService (metrics buffer + aggregation)
+│   ├── metric_collector.py      MetricCollector (timing hooks)
+│   ├── cost_calculator.py       CostCalculator (pricing + breakdown)
+│   └── quality_metrics.py       QualityMetrics (interruptions, outcome, sentiment)
 ├── providers/
 │   └── groq_llm.py       ✅ Groq провайдер (основной)
 alembic/                         ✅ Database migrations (Enterprise Platform)
@@ -216,6 +276,13 @@ scripts/
 ├── test_database.py      ✅ Тест PostgreSQL
 ├── test_rag.py           ✅ Тест RAG
 ├── test_groq.py          ✅ Тест Groq
+├── test_enterprise_platform.py  ✅ Тест Enterprise Platform (Phase 1)
+├── test_enterprise_db.py        ✅ Тест Enterprise DB (Phase 1)
+├── test_skillbase_service.py    ✅ Тест Skillbase Service (Phase 2)
+├── test_skillbase_agent.py      ✅ Тест Skillbase Agent (Phase 2)
+├── test_skillbase_scenario_adapter.py  ✅ Тест Adapter (Phase 2)
+├── test_tools.py                ✅ Тест Function Calling Tools (Phase 2)
+├── test_telemetry.py            ✅ Тест Telemetry System (Phase 3)
 examples/
 ├── scenarios/
 │   ├── salon_scenario.yaml   ✅ Салон красоты
@@ -350,7 +417,8 @@ uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 | 2026-01-15 | **🎉 ТЕЛЕФОНИЯ РАБОТАЕТ!** VPS РФ + Kamailio + rtpengine |
 | 2026-01-15 | Переключен LLM на Groq (быстрее Ollama) |
 | 2026-01-17 | **🏗️ Enterprise Platform Phase 1** — Database Schema Migration |
-| 2026-01-17 | **🏗️ Enterprise Platform Phase 2** — Skillbase Management (Pydantic + Service) |
+| 2026-01-17 | **🏗️ Enterprise Platform Phase 2** — Skillbase Management (Pydantic + Service + VoiceAgent + Tools) |
+| 2026-01-17 | **📊 Enterprise Platform Phase 3** — Deep Observability (Telemetry + Metrics + Costs + Quality) ✅ ЗАВЕРШЕНО |
 
 ---
 
