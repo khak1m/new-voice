@@ -14,7 +14,8 @@
 - ✅ SystemPromptBuilder (генерация промптов)
 - ✅ **Базовый промпт вынесен в `config/base_prompt.txt`** ⭐
 - ✅ skillbase_voice_agent.py (загрузка из БД)
-- ✅ Task 6.1 завершен
+- ✅ **Task 6.1: VoiceAgent рефакторинг** ✅
+- ✅ **Task 6.2: Интеграция ScenarioEngine** ✅
 
 ## 📋 Архитектура промптов
 
@@ -43,12 +44,25 @@ systemctl restart new-voice-agent
 # Готово! Изменения применятся ко ВСЕМ ботам
 ```
 
-## 🎯 Что дальше (Phase 2 - Tasks 6.2, 6.3)
+## 🔄 Интеграция ScenarioEngine
 
-### Task 6.2: Интеграция ScenarioEngine
-- [ ] Передать Skillbase.config в ScenarioEngine
-- [ ] Обработать ответы engine
-- [ ] Управление состояниями разговора
+### Адаптер Skillbase → ScenarioEngine
+
+Создан адаптер `SkillbaseToScenarioAdapter` который конвертирует:
+- `SkillbaseConfig` (упрощенная схема из БД)
+- → `ScenarioConfig` (полная схема для ScenarioEngine)
+
+**Что конвертируется:**
+- ✅ Context → BotPersonality (роль, стиль, факты)
+- ✅ FlowConfig → States + Transitions (linear/graph)
+- ✅ Safety rules → Guardrails
+- ✅ Voice settings → LanguageConfig
+
+**Поддерживаемые flow:**
+- `linear`: последовательные этапы (1 → 2 → 3 → 4 → 5)
+- `graph`: условные переходы между этапами
+
+## 🎯 Что дальше (Phase 2 - Task 6.3)
 
 ### Task 6.3: Function Calling
 - [ ] Парсить Tools из Skillbase.config
@@ -65,22 +79,25 @@ systemctl restart new-voice-agent
 ## 🧪 Тестирование
 
 ```bash
-# Локально
+# Тест адаптера (локально или на сервере)
+python scripts/test_skillbase_scenario_adapter.py
+
+# Тест Skillbase Agent
 python scripts/test_skillbase_agent.py
 
 # На сервере
 ssh root@6190955-ty757862.twc1.net
 cd ~/new-voice
 source venv/bin/activate
-python scripts/test_skillbase_agent.py
+python scripts/test_skillbase_scenario_adapter.py
 ```
 
 ## 🔄 Git статус
 
-Последний коммит: `bf5985c` - "refactor: базовый промпт вынесен в config/base_prompt.txt"
+Последний коммит: `e4c2922` - "feat: Task 6.2 - интеграция ScenarioEngine с Skillbase"
 
 Все изменения запушены в GitHub ✅
 
 ---
 
-**Следующий шаг:** Task 6.2 - Интеграция ScenarioEngine с Skillbase
+**Следующий шаг:** Task 6.3 - Function Calling (интеграция Tools)
