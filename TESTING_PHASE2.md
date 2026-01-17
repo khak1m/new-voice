@@ -1,60 +1,65 @@
-# Testing Phase 2: Skillbase Management
+# Phase 2: Skillbase Management - Инструкция по тестированию
 
 ## ✅ Что сделано
 
-**Phase 2: Skillbase Management** завершена:
-- ✅ Pydantic схемы для валидации конфигурации Skillbase
-- ✅ SkillbaseService с полным CRUD
-- ✅ Тесты (локальная валидация схем прошла успешно)
+### Задача 6.1: VoiceAgent Refactoring ✅
+
+**Создано:**
+1. `src/prompts/skillbase_prompt_builder.py` - SystemPromptBuilder
+2. `src/voice_agent/skillbase_voice_agent.py` - новый агент с загрузкой из БД
+3. `scripts/test_skillbase_agent.py` - тестовый скрипт
+
+**Изменено:**
+- `src/schemas/skillbase_schemas.py` - FlowConfig теперь поддерживает `Union[str, StateConfig]`
+
+---
 
 ## 🧪 Тестирование на сервере
 
-### 1. Обновить код на сервере
+### Шаг 1: Обновить код
 
 ```bash
-ssh root@77.233.212.58
 cd /root/new-voice
 git pull origin main
+```
+
+### Шаг 2: Запустить тесты
+
+```bash
 source venv/bin/activate
-```
-
-### 2. Применить миграции (если еще не применены)
-
-```bash
-# Проверить текущую версию БД
-python -m alembic current
-
-# Применить все миграции
-python -m alembic upgrade head
-
-# Проверить, что таблицы созданы
-psql -U postgres -d new_voice -c "\dt"
-```
-
-Должны быть таблицы:
-- `skillbases`
-- `campaigns`
-- `call_tasks`
-- `call_metrics`
-- `call_logs`
-
-### 3. Запустить тесты
-
-```bash
-# Тест 1: Валидация схем (работает без БД)
-python scripts/test_skillbase_service.py
-
-# Тест 2: Тест с реальной БД
-python scripts/test_enterprise_db.py
+python scripts/test_skillbase_agent.py
 ```
 
 **Ожидаемый результат:**
+
 ```
-✅ PASSED - Schema Validation (100%)
-✅ PASSED - Service Operations (100%)
+✅ PASSED - SystemPromptBuilder
+✅ PASSED - Создание Skillbase
+✅ PASSED - Загрузка Skillbase
+
+Результат: 3/3 тестов пройдено (100%)
 ```
 
-### 4. Ручное тестирование через Python
+### Шаг 3: Создать тестовый Skillbase
+
+Тест 2 создаст Skillbase в БД и выведет команду для запуска агента:
+
+```
+📋 ДЛЯ ЗАПУСКА АГЕНТА С ЭТИМ SKILLBASE:
+======================================================================
+SKILLBASE_ID=<uuid> python -m src.voice_agent.skillbase_voice_agent dev
+======================================================================
+```
+
+**Примечание:** Тест 2 откатывает транзакцию, поэтому Skillbase не сохраняется. Для реального тестирования нужно создать Skillbase через API или вручную в БД.
+
+---
+
+## 📝 Создание Skillbase вручную (для тестирования)
+
+### Вариант 1: Через Python скрипт
+
+Создайте файл `scripts/create_test_skillbase.py`:
 
 ```python
 import asyncio
@@ -63,130 +68,210 @@ from database.connection import get_async_db
 from database.models import Company
 from services.skillbase_service import SkillbaseService
 
-async def test_skillbase():
+async def main():
     async with get_async_db() as db:
-        # Создать тестовую компанию
-        company = Company(
-            id=uuid4(),
-            name="Test Company",
-            slug="test-company",
-            email="test@example.com"
-        )
-        db.add(company)
-        await db.flush()
+        # Найти существующую компанию или создать новую
+        from sqlalchemy import select
+        result = await db.execute(select(Company).limit(1))
+        company = result.scalar_one_or_none()
+        
+        if not company:
+            company = Company(
+                id=uuid4(),
+                name="Тестовая компания",
+                slug=f"test-{uuid4().hex[:8]}",
+                email="test@example.com"
+            )
+            db.add(company)
+            await db.flush()
         
         # Создать Skillbase
         service = SkillbaseService(db)
-        
-        config = {
-            "context": {
-                "role": "Ассистент салона красоты",
-                "style": "Дружелюбный и профессиональный",
-                "safety_rules": ["Не давать медицинские советы"],
-                "facts": ["Работаем с 9 до 21"]
-            },
-            "flow": {
-                "type": "linear",
-                "states": [
-                    {"id": "greeting", "name": "Приветствие"},
-                    {"id": "inquiry", "name": "Запрос услуги"}
-                ],
-                "transitions": []
-            },
-            "agent": {
-                "handoff_criteria": {},
-                "crm_field_mapping": {}
-            },
-            "tools": [],
-            "voice": {
-                "tts_provider": "cartesia",
-                "tts_voice_id": "064b17af-d36b-4bfb-b003-be07dba1b649",
-                "stt_provider": "deepgram",
-                "stt_language": "ru"
-            },
-            "llm": {
-                "provider": "groq",
-                "model": "llama-3.1-8b-instant",
-                "temperature": 0.7
-            }
-        }
-        
         skillbase = await service.create(
             company_id=company.id,
-            name="Салон красоты",
-            slug="salon-test",
-            config=config
+            name="Салон - Запись клиентов",
+            slug=f"salon-booking-{uuid4().hex[:8]}",
+            description="Тестовый Skillbase для записи в салон",
+            config={
+                "context": {
+                    "role": "Администратор салона красоты",
+                    "style": "Дружелюбный и профессиональный",
+                    "safety_rules": ["Не обсуждай политику"],
+                    "facts": ["Работаем с 9:00 до 21:00"]
+                },
+                "flow": {
+                    "type": "linear",
+                    "states": ["Приветствие", "Узнать имя", "Узнать услугу", "Записать"],
+                    "transitions": []
+                },
+                "agent": {"handoff_criteria": {}, "crm_field_mapping": {}},
+                "tools": [],
+                "voice": {
+                    "tts_provider": "cartesia",
+                    "tts_voice_id": "064b17af-d36b-4bfb-b003-be07dba1b649",
+                    "stt_provider": "deepgram",
+                    "stt_language": "ru"
+                },
+                "llm": {
+                    "provider": "groq",
+                    "model": "llama-3.1-8b-instant",
+                    "temperature": 0.7
+                }
+            }
         )
         
-        print(f"✅ Skillbase создан: {skillbase.id}")
-        print(f"   Версия: {skillbase.version}")
-        print(f"   Конфиг валиден: {skillbase.config is not None}")
+        await db.commit()
         
-        # Получить Skillbase для звонка
-        loaded = await service.get_for_call(skillbase.id)
-        print(f"✅ Skillbase загружен для звонка")
-        print(f"   Role: {loaded.config['context']['role']}")
-        print(f"   LLM: {loaded.config['llm']['provider']}/{loaded.config['llm']['model']}")
-        
-        # Обновить конфиг (должна увеличиться версия)
-        updated_config = config.copy()
-        updated_config["context"]["role"] = "Обновленный ассистент"
-        
-        updated = await service.update(
-            skillbase_id=skillbase.id,
-            config=updated_config
-        )
-        
-        print(f"✅ Skillbase обновлен")
-        print(f"   Новая версия: {updated.version} (было {skillbase.version})")
-        
-        # Откатить транзакцию (не сохранять тестовые данные)
-        await db.rollback()
-        print("✅ Тест завершен (данные не сохранены)")
+        print(f"✅ Skillbase создан!")
+        print(f"   ID: {skillbase.id}")
+        print(f"   Name: {skillbase.name}")
+        print(f"\n📋 Для запуска агента:")
+        print(f"SKILLBASE_ID={skillbase.id} python -m src.voice_agent.skillbase_voice_agent dev")
 
-# Запустить тест
-asyncio.run(test_skillbase())
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
-Сохранить в файл `test_manual.py` и запустить:
+Запустить:
+
 ```bash
-python test_manual.py
+python scripts/create_test_skillbase.py
 ```
 
-## 📋 Следующие шаги (Phase 2.1)
+### Вариант 2: Через psql
 
-После успешного тестирования Phase 2, переходим к интеграции с VoiceAgent:
+```sql
+-- Найти ID компании
+SELECT id, name FROM companies LIMIT 1;
 
-1. **Создать SystemPromptBuilder** (`src/prompts/prompt_builder.py`)
-   - Генерация динамического system prompt из Skillbase.config
-   - Включить: context.role, context.style, context.safety_rules, context.facts
+-- Создать Skillbase
+INSERT INTO skillbases (id, company_id, name, slug, config, version)
+VALUES (
+    gen_random_uuid(),
+    '<company_id>',  -- Замените на реальный ID
+    'Салон - Запись клиентов',
+    'salon-booking-test',
+    '{
+        "context": {
+            "role": "Администратор салона",
+            "style": "Дружелюбный",
+            "safety_rules": [],
+            "facts": ["Работаем 9-21"]
+        },
+        "flow": {
+            "type": "linear",
+            "states": ["Приветствие", "Узнать имя", "Записать"],
+            "transitions": []
+        },
+        "agent": {"handoff_criteria": {}, "crm_field_mapping": {}},
+        "tools": [],
+        "voice": {
+            "tts_provider": "cartesia",
+            "tts_voice_id": "064b17af-d36b-4bfb-b003-be07dba1b649",
+            "stt_provider": "deepgram",
+            "stt_language": "ru"
+        },
+        "llm": {
+            "provider": "groq",
+            "model": "llama-3.1-8b-instant",
+            "temperature": 0.7
+        }
+    }'::jsonb,
+    1
+)
+RETURNING id;
+```
 
-2. **Рефакторинг VoiceAgent** (`src/voice_agent/scenario_voice_agent.py`)
-   - Принимать `skillbase_id` вместо `scenario_path`
-   - Загружать Skillbase через `SkillbaseService.get_for_call()`
-   - Использовать SystemPromptBuilder для генерации промпта
-   - Применять настройки LLM/Voice из Skillbase.config
+---
 
-3. **Интеграция ScenarioEngine**
-   - Конвертировать Skillbase.config.flow в ScenarioConfig
-   - Передать в существующий ScenarioEngine
+## 🚀 Запуск агента с Skillbase
 
-4. **Тестирование**
-   - Создать Skillbase через сервис
-   - Запустить VoiceAgent с `skillbase_id`
-   - Проверить, что бот использует конфигурацию из БД
+После создания Skillbase:
 
-## 🎯 Критерии успеха Phase 2
+```bash
+# Установить SKILLBASE_ID
+export SKILLBASE_ID=<uuid>
 
-- [x] Pydantic схемы валидируют конфигурацию
-- [x] SkillbaseService создает/читает/обновляет/удаляет Skillbase
-- [x] Версия автоматически инкрементируется при изменении config
-- [ ] Тесты проходят на сервере с реальной БД
-- [ ] VoiceAgent может загрузить Skillbase и использовать его конфигурацию
+# Запустить агента
+python -m src.voice_agent.skillbase_voice_agent dev
+```
 
-## 📝 Примечания
+**Ожидаемый вывод:**
 
-- Локальные тесты (schema validation) прошли успешно ✅
-- Тесты с БД требуют подключения к PostgreSQL на сервере
-- Все операции async с автоматическим rollback при ошибках
-- Structured logging с контекстом (skillbase_id, company_id)
+```
+[Skillbase] Загружен: Салон - Запись клиентов (v1)
+[Skillbase] Компания: Тестовая компания
+[Skillbase] LLM: groq/llama-3.1-8b-instant
+[Skillbase] TTS: cartesia
+[Skillbase] STT: deepgram
+[Agent] System prompt построен (1160 символов)
+[Agent] Подключен к комнате: ...
+[Agent] Агент запущен, ожидаю голос...
+```
+
+---
+
+## ✅ Критерии успеха Phase 2 (Task 6.1)
+
+- [x] SystemPromptBuilder создан
+- [x] Промпт генерируется из Skillbase.config
+- [x] skillbase_voice_agent.py создан
+- [x] Агент загружает Skillbase из БД
+- [x] Агент использует LLM/TTS/STT из конфигурации
+- [ ] Агент протестирован с реальным звонком (TODO: Task 6.2)
+
+---
+
+## 🎯 Следующие шаги
+
+**Task 6.2:** Интеграция ScenarioEngine с Skillbase
+- Передать `Skillbase.config.flow` в ScenarioEngine
+- Обработать ответы engine
+
+**Task 6.3:** Function calling support
+- Парсить `Skillbase.config.tools`
+- Выполнять tool calls во время разговора
+
+---
+
+## 🆘 Troubleshooting
+
+### Проблема: "SKILLBASE_ID не указан"
+
+```bash
+# Убедитесь, что переменная установлена
+echo $SKILLBASE_ID
+
+# Если пусто, установите:
+export SKILLBASE_ID=<uuid>
+```
+
+### Проблема: "Skillbase не найден"
+
+```bash
+# Проверьте, что Skillbase существует в БД
+psql -U postgres -d new_voice -c "SELECT id, name FROM skillbases;"
+```
+
+### Проблема: "Неверный формат config"
+
+```bash
+# Проверьте структуру config
+psql -U postgres -d new_voice -c "SELECT config FROM skillbases WHERE id = '<uuid>';"
+```
+
+---
+
+## 📊 Статус Phase 2
+
+| Задача | Статус |
+|--------|--------|
+| 4.1 Pydantic модели | ✅ DONE |
+| 4.2 Валидация config | ✅ DONE |
+| 5.1 SkillbaseService | ✅ DONE |
+| 5.2 RAG attachment | ✅ DONE |
+| **6.1 VoiceAgent refactoring** | ✅ **DONE** |
+| 6.2 ScenarioEngine integration | ❌ TODO |
+| 6.3 Function calling | ❌ TODO |
+
+**Progress:** 5/7 задач (71%)
