@@ -1,0 +1,253 @@
+"""
+API для управления Skillbases (Task 17).
+
+Эндпоинты:
+- GET /api/skillbases — список Skillbases
+- POST /api/skillbases — создать Skillbase
+- GET /api/skillbases/{id} — получить Skillbase
+- PUT /api/skillbases/{id} — обновить Skillbase
+- DELETE /api/skillbases/{id} — удалить Skillbase
+"""
+
+from uuid import UUID
+from typing import Optional, List, Dict, Any
+from datetime import datetime
+
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel, Field, validator
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.database.connection import get_async_db
+from src.database.models import Skillbase, Company
+from src.services.skillbase_service import SkillbaseService, SkillbaseValidationError
+
+router = APIRouter()
+
+
+# =============================================================================
+# Pydantic схемы
+# =============================================================================
+
+class SkillbaseCreate(BaseModel):
+    """Схема создания Skillbase."""
+    name: str = Field(..., min_length=1, max_length=255)
+    slug: str = Field(..., min_length=1, max_length=100)
+    description: Optional[str] = None
+    company_id: UUID
+    config: Dict[str, Any] = Field(..., description="Skillbase configuration (context, flow, agent, tools, voice, llm)")
+    knowledge_base_id: Optional[UUID] = None
+    is_active: bool = True
+    is_published: bool = False
+
+
+class SkillbaseUpdate(BaseModel):
+    """Схема обновления Skillbase."""
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None
+    knowledge_base_id: Optional[UUID] = None
+    is_active: Optional[bool] = None
+    is_published: Optional[bool] = None
+
+
+class SkillbaseResponse(BaseModel):
+    """Схема ответа Skillbase."""
+    id: UUID
+    name: str
+    slug: str
+    description: Optional[str]
+    company_id: UUID
+    config: Dict[str, Any]
+    version: int
+    knowledge_base_id: Optional[UUID]
+    is_active: bool
+    is_published: bool
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class SkillbaseListResponse(BaseModel):
+    """Список Skillbases."""
+    items: List[SkillbaseResponse]
+    total: int
+
+
+class ValidationErrorDetail(BaseModel):
+    """Детали ошибки валидации."""
+    field: str
+    message: str
+
+
+class ValidationErrorResponse(BaseModel):
+    """Ответ с ошибками валидации."""
+    detail: str
+    errors: List[ValidationErrorDetail]
+
+
+# =============================================================================
+# Эндпоинты
+# =============================================================================
+
+@router.get("", response_model=SkillbaseListResponse)
+async def list_skillbases(
+    company_id: Optional[UUID] = None,
+    is_active: Optional[bool] = None,
+    is_published: Optional[bool] = None,
+    skip: int = 0,
+    limit: int = 50,
+):
+    """
+    Получить список Skillbases.
+    
+    Фильтры:
+    - company_id: фильтр по компании
+    - is_active: фильтр по активности
+    - is_published: фильтр по публикации
+    - skip: пропустить N записей (пагинация)
+    - limit: максимум записей (default: 50)
+    """
+    async with get_async_db() as db:
+        query = select(Skillbase)
+        
+        if company_id:
+            query = query.where(Skillbase.company_id == company_id)
+        if is_active is not None:
+            query = query.where(Skillbase.is_active == is_active)
+        if is_published is not None:
+            query = query.where(Skillbase.is_published == is_published)
+        
+        query = query.offset(skip).limit(limit).order_by(Skillbase.created_at.desc())
+        
+        result = await db.execute(query)
+        skillbases = list(result.scalars().all())
+        
+        # Считаем общее количество
+        count_query = select(Skillbase)
+        if company_id:
+            count_query = count_query.where(Skillbase.company_id == company_id)
+        if is_active is not None:
+            count_query = count_query.where(Skillbase.is_active == is_active)
+        if is_published is not None:
+            count_query = count_query.where(Skillbase.is_published == is_published)
+        
+        count_result = await db.execute(count_query)
+        total = len(list(count_result.scalars().all()))
+        
+        return SkillbaseListResponse(
+            items=[SkillbaseResponse.model_validate(sb) for sb in skillbases],
+            total=total,
+        )
+
+
+@router.post("", response_model=SkillbaseResponse, status_code=201)
+async def create_skillbase(data: SkillbaseCreate):
+    """
+    Создать новый Skillbase.
+    
+    Валидирует конфигурацию перед сохранением.
+    Возвращает 400 с детальными ошибками при невалидной конфигурации.
+    """
+    async with get_async_db() as db:
+        service = SkillbaseService(db)
+        
+        try:
+            skillbase = await service.create(
+                company_id=data.company_id,
+                name=data.name,
+                slug=data.slug,
+                description=data.description,
+                config=data.config,
+                knowledge_base_id=data.knowledge_base_id,
+                is_active=data.is_active,
+                is_published=data.is_published,
+            )
+            
+            return SkillbaseResponse.model_validate(skillbase)
+        
+        except SkillbaseValidationError as e:
+            # Возвращаем детальные ошибки валидации
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": str(e),
+                    "errors": e.errors if hasattr(e, "errors") else [],
+                }
+            )
+        
+        except ValueError as e:
+            # Другие ошибки валидации (company not found, slug exists, etc.)
+            raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{skillbase_id}", response_model=SkillbaseResponse)
+async def get_skillbase(skillbase_id: UUID):
+    """
+    Получить Skillbase по ID.
+    """
+    async with get_async_db() as db:
+        skillbase = await db.get(Skillbase, skillbase_id)
+        
+        if not skillbase:
+            raise HTTPException(status_code=404, detail="Skillbase not found")
+        
+        return SkillbaseResponse.model_validate(skillbase)
+
+
+@router.put("/{skillbase_id}", response_model=SkillbaseResponse)
+async def update_skillbase(skillbase_id: UUID, data: SkillbaseUpdate):
+    """
+    Обновить Skillbase.
+    
+    При обновлении config автоматически инкрементируется version.
+    Валидирует новую конфигурацию перед сохранением.
+    """
+    async with get_async_db() as db:
+        service = SkillbaseService(db)
+        
+        try:
+            skillbase = await service.update(
+                skillbase_id=skillbase_id,
+                name=data.name,
+                description=data.description,
+                config=data.config,
+                knowledge_base_id=data.knowledge_base_id,
+                is_active=data.is_active,
+                is_published=data.is_published,
+            )
+            
+            return SkillbaseResponse.model_validate(skillbase)
+        
+        except SkillbaseValidationError as e:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": str(e),
+                    "errors": e.errors if hasattr(e, "errors") else [],
+                }
+            )
+        
+        except ValueError as e:
+            if "not found" in str(e).lower():
+                raise HTTPException(status_code=404, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/{skillbase_id}", status_code=204)
+async def delete_skillbase(skillbase_id: UUID):
+    """
+    Удалить Skillbase.
+    
+    ВНИМАНИЕ: Удаление Skillbase удалит все связанные Campaigns и CallTasks (CASCADE).
+    """
+    async with get_async_db() as db:
+        skillbase = await db.get(Skillbase, skillbase_id)
+        
+        if not skillbase:
+            raise HTTPException(status_code=404, detail="Skillbase not found")
+        
+        await db.delete(skillbase)
+        await db.commit()

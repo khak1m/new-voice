@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from .routers import bots, knowledge_bases, calls, leads, health, dashboard
+from .routers import bots, knowledge_bases, calls, leads, health, dashboard, skillbases, campaigns, analytics
 
 load_dotenv()
 
@@ -57,6 +57,9 @@ app.include_router(bots.router, prefix="/api/bots", tags=["Bots"])
 app.include_router(knowledge_bases.router, prefix="/api/knowledge-bases", tags=["Knowledge Bases"])
 app.include_router(calls.router, prefix="/api/calls", tags=["Calls"])
 app.include_router(leads.router, prefix="/api/leads", tags=["Leads"])
+app.include_router(skillbases.router, prefix="/api/skillbases", tags=["Skillbases"])
+app.include_router(campaigns.router, prefix="/api/campaigns", tags=["Campaigns"])
+app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
 
 
 @app.get("/")
