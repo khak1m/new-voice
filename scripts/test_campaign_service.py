@@ -492,6 +492,13 @@ async def test_task_status_transitions():
         task2 = result.scalar_one_or_none()
         
         if task2:
+            # Get campaign to check max_retries
+            from sqlalchemy import select as sql_select
+            campaign_result = await session.execute(
+                sql_select(Campaign).where(Campaign.id == task2.campaign_id)
+            )
+            campaign = campaign_result.scalar_one()
+            
             # Mark in progress
             await service.mark_in_progress(task2.id)
             
@@ -501,7 +508,8 @@ async def test_task_status_transitions():
                 error_message="Test error"
             )
             
-            if updated.attempt_count < updated.campaign.max_retries:
+            # Check status based on attempt count
+            if updated.attempt_count < campaign.max_retries:
                 assert updated.status == "retry"
                 assert updated.next_attempt_at is not None
                 print_success(f"Task marked for retry")

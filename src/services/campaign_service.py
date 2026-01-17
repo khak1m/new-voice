@@ -654,16 +654,19 @@ class CampaignService:
     ) -> CallTask:
         """Mark task as failed or retry."""
         try:
+            # Eager load campaign relationship to avoid lazy loading in async context
             result = await self.db_session.execute(
-                select(CallTask).where(CallTask.id == task_id)
+                select(CallTask)
+                .where(CallTask.id == task_id)
+                .options(selectinload(CallTask.campaign))
             )
             task = result.scalar_one_or_none()
             
             if not task:
                 raise CampaignServiceError(f"Task {task_id} not found")
             
-            # Get campaign for retry config
-            campaign = await self.get_by_id(task.campaign_id)
+            # Campaign is already loaded via eager loading
+            campaign = task.campaign
             
             if task.attempt_count < campaign.max_retries:
                 # Schedule retry
