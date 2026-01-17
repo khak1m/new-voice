@@ -89,24 +89,47 @@
 - [x] LiveKit Inbound Trunk обновлён (allowed: 62.113.37.156)
 - [x] **🎉 Тестовый звонок прошёл успешно!**
 
+### Этап 9: Enterprise Platform ✅ НАЧАТО!
+- [x] **Спецификация создана** (.kiro/specs/enterprise-platform/)
+  - [x] Requirements.md — 9 требований в EARS формате
+  - [x] Design.md — архитектура с 10 correctness properties
+  - [x] Tasks.md — план реализации в 5 фаз (22 группы задач)
+- [x] **Phase 1: Database Schema Migration** ✅ ЗАВЕРШЕНО
+  - [x] Alembic настроен для NEW-VOICE 2.0
+  - [x] Миграция 001: skillbases, campaigns, call_tasks
+  - [x] Миграция 002: call_metrics, call_logs
+  - [x] SQLAlchemy модели: Skillbase, Campaign, CallTask, CallMetrics, CallLog
+  - [x] Все тесты пройдены — готово к применению на сервере
+
 ---
 
 ## 🔜 СЛЕДУЮЩИЕ ЗАДАЧИ
 
-### 1. Оптимизация задержки
+### 1. Enterprise Platform (продолжение)
+- [ ] **Phase 2: Skillbase Management** — Pydantic схемы, SkillbaseService, интеграция с VoiceAgent
+- [ ] **Phase 3: Deep Observability** — TelemetryService, MetricCollector, CostCalculator
+- [ ] **Phase 4: Campaign Manager** — CampaignService, CallTask management, background workers
+- [ ] **Phase 5: API Layer** — CRUD endpoints, file upload, WebSocket monitoring
+
+### 2. Применение миграций на сервере
+- [ ] Подключиться к серверу PostgreSQL
+- [ ] Выполнить `python -m alembic upgrade head`
+- [ ] Проверить создание новых таблиц
+
+### 3. Оптимизация задержки
 - [ ] GPU сервер в РФ для LLM (уменьшит latency на ~500ms)
 - [ ] Перенос агента на VPS РФ
 
-### 2. Масштабирование
+### 4. Масштабирование
 - [ ] Несколько воркеров агента (--num-workers=10)
 - [ ] Увеличить ресурсы VPS (4 CPU, 8GB RAM)
 
-### 3. Admin UI (веб-интерфейс)
+### 5. Admin UI (веб-интерфейс)
 - [ ] React/Next.js фронтенд
 - [ ] Управление ботами через UI
 - [ ] Просмотр звонков и лидов
 
-### 4. Outbound Trunk (исходящие звонки)
+### 6. Outbound Trunk (исходящие звонки)
 - [ ] Создать Outbound Trunk в LiveKit
 - [ ] Настроить исходящие звонки через MTS Exolve
 
@@ -115,15 +138,16 @@
 ## 📊 Общий прогресс
 
 ```
-Инфраструктура:  ██████████ 100%
-Scenario Engine: ██████████ 100% ✅
-Voice Pipeline:  ██████████ 100% ✅
-Provider Layer:  ██████████ 100% ✅
-Database:        ██████████ 100% ✅
-RAG System:      ██████████ 100% ✅
-Admin API:       ██████████ 100% ✅
-Телефония:       ██████████ 100% ✅ РАБОТАЕТ!
-Admin UI:        ░░░░░░░░░░ 0%
+Инфраструктура:     ██████████ 100%
+Scenario Engine:    ██████████ 100% ✅
+Voice Pipeline:     ██████████ 100% ✅
+Provider Layer:     ██████████ 100% ✅
+Database:           ██████████ 100% ✅
+RAG System:         ██████████ 100% ✅
+Admin API:          ██████████ 100% ✅
+Телефония:          ██████████ 100% ✅ РАБОТАЕТ!
+Enterprise Platform: ██░░░░░░░░ 20% (Phase 1 завершена)
+Admin UI:           ░░░░░░░░░░ 0%
 ```
 
 ---
@@ -158,11 +182,20 @@ src/
 │   ├── knowledge_base.py        Менеджер базы знаний
 │   └── search.py                Поиск по документам
 ├── database/
-│   ├── models.py         ✅ SQLAlchemy модели
+│   ├── models.py         ✅ SQLAlchemy модели (+ Enterprise Platform)
 │   └── connection.py     ✅ Подключение к PostgreSQL
 ├── providers/
 │   ├── ollama_llm.py     ✅ Ollama провайдер
 │   └── groq_llm.py       ⚠️ Заблокирован в РФ
+alembic/                         ✅ Database migrations (Enterprise Platform)
+├── env.py                       Alembic environment configuration
+├── versions/
+│   ├── 001_add_skillbases_campaigns_call_tasks.py  ✅ Skillbase tables
+│   └── 002_add_call_metrics_and_call_logs.py       ✅ Observability tables
+.kiro/specs/enterprise-platform/ ✅ Enterprise Platform specification
+├── requirements.md              9 requirements (EARS format)
+├── design.md                    Architecture + 10 correctness properties
+└── tasks.md                     5-phase implementation plan (22 task groups)
 scripts/
 ├── test_services.py      ✅ Тест всех сервисов
 ├── test_database.py      ✅ Тест PostgreSQL
@@ -184,6 +217,63 @@ examples/
 - LIVEKIT_URL ✅
 - LIVEKIT_API_KEY ✅
 - LIVEKIT_API_SECRET ✅
+
+---
+
+## 🗄️ Enterprise Platform Database Schema
+
+### Новые таблицы (Phase 1)
+
+| Таблица | Назначение | Статус |
+|---------|------------|--------|
+| **skillbases** | Комплексная конфигурация ботов (JSONB) | ✅ Создана |
+| **campaigns** | Кампании исходящих звонков | ✅ Создана |
+| **call_tasks** | Очередь задач на звонки | ✅ Создана |
+| **call_metrics** | Агрегированные метрики звонков (1:1 с calls) | ✅ Создана |
+| **call_logs** | Per-turn детальные логи | ✅ Создана |
+
+### Структура Skillbase (JSONB config)
+```json
+{
+  "context": {
+    "role": "Ассистент салона красоты",
+    "style": "Дружелюбный и профессиональный", 
+    "safety_rules": ["Не давать медицинские советы"],
+    "facts": ["Работаем с 9 до 21", "Принимаем карты и наличные"]
+  },
+  "flow": {
+    "type": "linear|graph",
+    "states": ["greeting", "service_inquiry", "booking", "confirmation"],
+    "transitions": []
+  },
+  "agent": {
+    "handoff_criteria": {"complex_request": true},
+    "crm_field_mapping": {"name": "client_name", "phone": "client_phone"}
+  },
+  "tools": [
+    {"name": "calendar", "config": {"api_url": "https://api.example.com"}}
+  ],
+  "voice": {
+    "tts_provider": "cartesia",
+    "tts_voice_id": "064b17af-d36b-4bfb-b003-be07dba1b649",
+    "stt_provider": "deepgram", 
+    "stt_language": "ru"
+  },
+  "llm": {
+    "provider": "groq",
+    "model": "llama-3.1-70b-versatile",
+    "temperature": 0.7
+  }
+}
+```
+
+### Применение миграций на сервере
+```bash
+# На сервере с PostgreSQL
+cd /root/new-voice
+source venv/bin/activate
+python -m alembic upgrade head
+```
 
 ---
 
@@ -244,6 +334,7 @@ uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 | 2026-01-13 | **📞 Телефония MTS Exolve настроена!** |
 | 2026-01-15 | **🎉 ТЕЛЕФОНИЯ РАБОТАЕТ!** VPS РФ + Kamailio + rtpengine |
 | 2026-01-15 | Переключен LLM на Groq (быстрее Ollama) |
+| 2026-01-17 | **🏗️ Enterprise Platform Phase 1** — Database Schema Migration |
 
 ---
 
