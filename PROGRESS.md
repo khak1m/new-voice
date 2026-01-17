@@ -100,13 +100,27 @@
   - [x] Миграция 002: call_metrics, call_logs
   - [x] SQLAlchemy модели: Skillbase, Campaign, CallTask, CallMetrics, CallLog
   - [x] Все тесты пройдены — готово к применению на сервере
+- [x] **Phase 2: Skillbase Management** ✅ ЗАВЕРШЕНО
+  - [x] Pydantic схемы для валидации конфигурации (src/schemas/skillbase_schemas.py)
+    - ContextConfig, FlowConfig, AgentConfig, ToolConfig, VoiceConfig, LLMConfig
+    - Валидация: required fields, type checking, cross-reference validation
+    - Enums: FlowType, TTSProvider, STTProvider, LLMProvider
+  - [x] SkillbaseService (src/services/skillbase_service.py)
+    - CRUD операции: create, get_by_id, get_by_slug, update, delete, list_by_company
+    - get_for_call() — оптимизированный запрос для инициализации звонка
+    - Автоматический инкремент версии при изменении config
+    - Все операции async с error handling и rollback
+  - [x] Тесты (scripts/test_skillbase_service.py)
+    - ✅ Schema validation tests passed (100%)
+    - ⚠️ Service CRUD tests require DB connection (run on server)
 
 ---
 
 ## 🔜 СЛЕДУЮЩИЕ ЗАДАЧИ
 
 ### 1. Enterprise Platform (продолжение)
-- [ ] **Phase 2: Skillbase Management** — Pydantic схемы, SkillbaseService, интеграция с VoiceAgent
+- [x] **Phase 2: Skillbase Management** ✅ ЗАВЕРШЕНО
+- [ ] **Phase 2.1: VoiceAgent Integration** — SystemPromptBuilder, интеграция с VoiceAgent
 - [ ] **Phase 3: Deep Observability** — TelemetryService, MetricCollector, CostCalculator
 - [ ] **Phase 4: Campaign Manager** — CampaignService, CallTask management, background workers
 - [ ] **Phase 5: API Layer** — CRUD endpoints, file upload, WebSocket monitoring
@@ -146,7 +160,7 @@ Database:           ██████████ 100% ✅
 RAG System:         ██████████ 100% ✅
 Admin API:          ██████████ 100% ✅
 Телефония:          ██████████ 100% ✅ РАБОТАЕТ!
-Enterprise Platform: ██░░░░░░░░ 20% (Phase 1 завершена)
+Enterprise Platform: ████░░░░░░ 40% (Phase 1-2 завершены)
 Admin UI:           ░░░░░░░░░░ 0%
 ```
 
@@ -184,6 +198,10 @@ src/
 ├── database/
 │   ├── models.py         ✅ SQLAlchemy модели (+ Enterprise Platform)
 │   └── connection.py     ✅ Подключение к PostgreSQL
+├── schemas/                     ✅ Pydantic schemas (Enterprise Platform)
+│   └── skillbase_schemas.py     Валидация Skillbase config
+├── services/                    ✅ Business logic (Enterprise Platform)
+│   └── skillbase_service.py     CRUD для Skillbase
 ├── providers/
 │   ├── ollama_llm.py     ✅ Ollama провайдер
 │   └── groq_llm.py       ⚠️ Заблокирован в РФ
@@ -335,6 +353,7 @@ uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 | 2026-01-15 | **🎉 ТЕЛЕФОНИЯ РАБОТАЕТ!** VPS РФ + Kamailio + rtpengine |
 | 2026-01-15 | Переключен LLM на Groq (быстрее Ollama) |
 | 2026-01-17 | **🏗️ Enterprise Platform Phase 1** — Database Schema Migration |
+| 2026-01-17 | **🏗️ Enterprise Platform Phase 2** — Skillbase Management (Pydantic + Service) |
 
 ---
 
