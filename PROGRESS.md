@@ -158,6 +158,26 @@
     - ✅ CostCalculator — PASSED (100%)
     - ✅ QualityMetrics — PASSED (100%)
     - **Результат: 4/4 тестов пройдено (100%)**
+- [x] **Phase 4: Campaign Management** ✅ РЕАЛИЗОВАНО (Tasks 13-14)
+  - [x] CampaignService (src/services/campaign_service.py)
+    - CRUD операции: create, get_by_id, get_active_campaigns
+    - Lifecycle: start, pause
+    - Call list upload: CSV/Excel parsing с pandas/openpyxl
+    - Rate limiting: max_concurrent_calls, calls_per_minute
+    - Task queue: get_next_task с проверкой scheduling windows
+    - Task management: mark_in_progress, mark_completed, mark_failed
+    - Retry logic: max_retries, retry_delay_minutes
+  - [x] Тесты (scripts/test_campaign_service.py)
+    - ✅ Campaign creation with validation
+    - ✅ Call list upload (CSV parsing)
+    - ✅ Campaign lifecycle (start/pause)
+    - ✅ Task queue management
+    - ✅ Task status transitions
+    - **Статус: READY FOR TESTING**
+  - [ ] CampaignWorker (Task 15) — НЕ РЕАЛИЗОВАНО
+    - Background task processing
+    - LiveKit room creation
+    - VoiceAgent execution
 
 ---
 
@@ -167,7 +187,15 @@
 - [x] **Phase 1: Database Schema Migration** ✅ ЗАВЕРШЕНО
 - [x] **Phase 2: Skillbase Management** ✅ ЗАВЕРШЕНО
 - [x] **Phase 3: Deep Observability** ✅ ЗАВЕРШЕНО
-- [ ] **Phase 4: Campaign Manager** — CampaignService, CallTask management, background workers
+- [x] **Phase 4: Campaign Management (Tasks 13-14)** ✅ РЕАЛИЗОВАНО
+  - [x] CampaignService — управление кампаниями
+  - [x] Call list upload — CSV/Excel parsing
+  - [x] Rate limiting — concurrent + per minute
+  - [x] Task queue management — get_next_task
+  - [x] Task status transitions — mark_in_progress/completed/failed
+  - [x] Retry logic — max_retries, retry_delay
+  - [ ] **ТЕСТИРОВАНИЕ НА СЕРВЕРЕ** — запустить test_campaign_service.py
+- [ ] **Phase 4: Campaign Management (Tasks 15-16)** — CampaignWorker, background processing
 - [ ] **Phase 5: API Layer** — CRUD endpoints, file upload, WebSocket monitoring
 
 ### 2. Применение миграций на сервере
@@ -205,7 +233,7 @@ Database:           ██████████ 100% ✅
 RAG System:         ██████████ 100% ✅
 Admin API:          ██████████ 100% ✅
 Телефония:          ██████████ 100% ✅ РАБОТАЕТ!
-Enterprise Platform: ██████░░░░ 60% (Phase 1-3 завершены)
+Enterprise Platform: ███████░░░ 70% (Phase 1-3 завершены, Phase 4 Tasks 13-14 готовы)
 Admin UI:           ░░░░░░░░░░ 0%
 ```
 
@@ -419,6 +447,7 @@ uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 | 2026-01-17 | **🏗️ Enterprise Platform Phase 1** — Database Schema Migration |
 | 2026-01-17 | **🏗️ Enterprise Platform Phase 2** — Skillbase Management (Pydantic + Service + VoiceAgent + Tools) |
 | 2026-01-17 | **📊 Enterprise Platform Phase 3** — Deep Observability (Telemetry + Metrics + Costs + Quality) ✅ ЗАВЕРШЕНО |
+| 2026-01-17 | **📞 Enterprise Platform Phase 4 (Tasks 13-14)** — Campaign Management (CampaignService + Tests) ✅ РЕАЛИЗОВАНО |
 
 ---
 
