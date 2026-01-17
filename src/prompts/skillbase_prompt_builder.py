@@ -5,8 +5,13 @@ SystemPromptBuilder - конвертирует Skillbase config в промпт 
 Промпт определяет поведение голосового ассистента во время звонка.
 """
 
+import os
+from pathlib import Path
 from typing import List, Optional
 from schemas.skillbase_schemas import SkillbaseConfig
+
+# Путь к базовому промпту (общие правила для всех ботов)
+BASE_PROMPT_PATH = Path(__file__).parent.parent.parent / "config" / "base_prompt.txt"
 
 
 class SystemPromptBuilder:
@@ -47,8 +52,23 @@ class SystemPromptBuilder:
         return "\n".join(sections)
     
     def _build_base_instructions(self) -> str:
-        """Базовые инструкции для всех ботов."""
-        return """# КТО ТЫ
+        """
+        Базовые инструкции для всех ботов.
+        
+        Загружает из файла config/base_prompt.txt.
+        Можно переопределить через переменную окружения BASE_PROMPT_PATH.
+        """
+        # Проверяем переменную окружения (для кастомизации)
+        custom_path = os.getenv("BASE_PROMPT_PATH")
+        prompt_path = Path(custom_path) if custom_path else BASE_PROMPT_PATH
+        
+        # Читаем базовый промпт из файла
+        try:
+            with open(prompt_path, "r", encoding="utf-8") as f:
+                return f.read()
+        except FileNotFoundError:
+            # Fallback на дефолтный промпт если файл не найден
+            return """# КТО ТЫ
 Ты — голосовой ассистент, который отвечает на звонки.
 Говори как живой человек, а не как робот.
 

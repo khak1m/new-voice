@@ -33,6 +33,17 @@ async def test_prompt_builder():
         from schemas.skillbase_schemas import SkillbaseConfig
         from prompts.skillbase_prompt_builder import build_prompt_from_skillbase
         
+        # Проверяем, что базовый промпт существует
+        base_prompt_path = Path(__file__).parent.parent / "config" / "base_prompt.txt"
+        if base_prompt_path.exists():
+            print(f"✅ Базовый промпт найден: {base_prompt_path}")
+            with open(base_prompt_path, "r", encoding="utf-8") as f:
+                base_content = f.read()
+            print(f"   Размер: {len(base_content)} символов")
+        else:
+            print(f"⚠️  Базовый промпт не найден: {base_prompt_path}")
+            print("   Будет использован fallback промпт")
+        
         # Тестовая конфигурация
         test_config = {
             "context": {
