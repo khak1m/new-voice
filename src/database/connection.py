@@ -189,9 +189,10 @@ async def init_async_db():
 def check_connection() -> bool:
     """Проверить подключение к БД."""
     try:
+        from sqlalchemy import text
         engine = get_engine()
         with engine.connect() as conn:
-            conn.execute("SELECT 1")
+            conn.execute(text("SELECT 1"))
         return True
     except Exception as e:
         print(f"❌ Database connection failed: {e}")
@@ -201,9 +202,10 @@ def check_connection() -> bool:
 async def check_async_connection() -> bool:
     """Асинхронная проверка подключения."""
     try:
+        from sqlalchemy import text
         engine = get_async_engine()
         async with engine.connect() as conn:
-            await conn.execute("SELECT 1")
+            await conn.execute(text("SELECT 1"))
         return True
     except Exception as e:
         print(f"❌ Database connection failed: {e}")
