@@ -76,130 +76,132 @@ async def test_campaign_creation():
     """Test 1: Campaign creation with validation."""
     print_header("ТЕСТ 1: Campaign Creation")
     
-    async for session in get_async_session():
+    session = await get_async_session()
+    try:
+        # Clean up first
+        await cleanup_test_data(session)
+        
+        # Create test company
+        company = Company(
+            id=uuid4(),
+            name="Test Company 1",
+            email="test1@example.com"
+        )
+        session.add(company)
+        
+        # Create test skillbase
+        skillbase = Skillbase(
+            id=uuid4(),
+            company_id=company.id,
+            name="Test Skillbase 1",
+            slug="test-skillbase-1",
+            config={
+                "context": {"role": "Test bot"},
+                "flow": {"type": "linear", "states": ["greeting"]},
+                "voice": {"tts_provider": "cartesia"},
+                "llm": {"provider": "groq", "model": "llama-3.1-8b-instant"}
+            },
+            version=1,
+            is_active=True
+        )
+        session.add(skillbase)
+        await session.commit()
+        
+        print_success("Test data created")
+        
+        # Create CampaignService
+        service = CampaignService(session)
+        print_success("CampaignService created")
+        
+        # Test: Create campaign
+        campaign = await service.create(
+            company_id=company.id,
+            skillbase_id=skillbase.id,
+            name="Test Campaign 1",
+            description="Test campaign for unit tests",
+            daily_start_time="09:00",
+            daily_end_time="21:00",
+            max_concurrent_calls=5,
+            calls_per_minute=10,
+            max_retries=3,
+            retry_delay_minutes=30
+        )
+        
+        assert campaign.id is not None
+        assert campaign.name == "Test Campaign 1"
+        assert campaign.status == "draft"
+        assert campaign.total_tasks == 0
+        assert campaign.max_concurrent_calls == 5
+        assert campaign.calls_per_minute == 10
+        
+        print_success(f"Campaign created: {campaign.id}")
+        print(f"   Name: {campaign.name}")
+        print(f"   Status: {campaign.status}")
+        print(f"   Max concurrent: {campaign.max_concurrent_calls}")
+        print(f"   Calls per minute: {campaign.calls_per_minute}")
+        
+        # Test: Validation - invalid company
         try:
-            # Clean up first
-            await cleanup_test_data(session)
-            
-            # Create test company
-            company = Company(
-                id=uuid4(),
-                name="Test Company 1",
-                email="test1@example.com"
+            await service.create(
+                company_id=uuid4(),  # Non-existent
+                skillbase_id=skillbase.id,
+                name="Invalid Campaign"
             )
-            session.add(company)
-            
-            # Create test skillbase
-            skillbase = Skillbase(
-                id=uuid4(),
+            print_error("Should have raised CampaignValidationError")
+            return False
+        except CampaignValidationError as e:
+            print_success(f"Validation error caught: {e}")
+        
+        # Test: Validation - invalid skillbase
+        try:
+            await service.create(
                 company_id=company.id,
-                name="Test Skillbase 1",
-                slug="test-skillbase-1",
-                config={
-                    "context": {"role": "Test bot"},
-                    "flow": {"type": "linear", "states": ["greeting"]},
-                    "voice": {"tts_provider": "cartesia"},
-                    "llm": {"provider": "groq", "model": "llama-3.1-8b-instant"}
-                },
-                version=1,
-                is_active=True
+                skillbase_id=uuid4(),  # Non-existent
+                name="Invalid Campaign"
             )
-            session.add(skillbase)
-            await session.commit()
-            
-            print_success("Test data created")
-            
-            # Create CampaignService
-            service = CampaignService(session)
-            print_success("CampaignService created")
-            
-            # Test: Create campaign
-            campaign = await service.create(
+            print_error("Should have raised CampaignValidationError")
+            return False
+        except CampaignValidationError as e:
+            print_success(f"Validation error caught: {e}")
+        
+        # Test: Validation - invalid time format
+        try:
+            await service.create(
                 company_id=company.id,
                 skillbase_id=skillbase.id,
-                name="Test Campaign 1",
-                description="Test campaign for unit tests",
-                daily_start_time="09:00",
-                daily_end_time="21:00",
-                max_concurrent_calls=5,
-                calls_per_minute=10,
-                max_retries=3,
-                retry_delay_minutes=30
+                name="Invalid Campaign",
+                daily_start_time="25:00"  # Invalid
             )
-            
-            assert campaign.id is not None
-            assert campaign.name == "Test Campaign 1"
-            assert campaign.status == "draft"
-            assert campaign.total_tasks == 0
-            assert campaign.max_concurrent_calls == 5
-            assert campaign.calls_per_minute == 10
-            
-            print_success(f"Campaign created: {campaign.id}")
-            print(f"   Name: {campaign.name}")
-            print(f"   Status: {campaign.status}")
-            print(f"   Max concurrent: {campaign.max_concurrent_calls}")
-            print(f"   Calls per minute: {campaign.calls_per_minute}")
-            
-            # Test: Validation - invalid company
-            try:
-                await service.create(
-                    company_id=uuid4(),  # Non-existent
-                    skillbase_id=skillbase.id,
-                    name="Invalid Campaign"
-                )
-                print_error("Should have raised CampaignValidationError")
-                return False
-            except CampaignValidationError as e:
-                print_success(f"Validation error caught: {e}")
-            
-            # Test: Validation - invalid skillbase
-            try:
-                await service.create(
-                    company_id=company.id,
-                    skillbase_id=uuid4(),  # Non-existent
-                    name="Invalid Campaign"
-                )
-                print_error("Should have raised CampaignValidationError")
-                return False
-            except CampaignValidationError as e:
-                print_success(f"Validation error caught: {e}")
-            
-            # Test: Validation - invalid time format
-            try:
-                await service.create(
-                    company_id=company.id,
-                    skillbase_id=skillbase.id,
-                    name="Invalid Campaign",
-                    daily_start_time="25:00"  # Invalid
-                )
-                print_error("Should have raised CampaignValidationError")
-                return False
-            except CampaignValidationError as e:
-                print_success(f"Validation error caught: {e}")
-            
-            print_success("All validation tests passed")
-            
-            return True
-            
-        except Exception as e:
-            print_error(f"Test failed: {e}")
-            import traceback
-            traceback.print_exc()
+            print_error("Should have raised CampaignValidationError")
             return False
+        except CampaignValidationError as e:
+            print_success(f"Validation error caught: {e}")
+        
+        print_success("All validation tests passed")
+        
+        return True
+        
+    except Exception as e:
+        print_error(f"Test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+    finally:
+        await session.close()
 
 
 async def test_call_list_upload():
     """Test 2: Call list upload (CSV parsing)."""
     print_header("ТЕСТ 2: Call List Upload")
     
-    async for session in get_async_session():
-        try:
-            # Get test campaign
-            from sqlalchemy import select
-            result = await session.execute(
-                select(Campaign).where(Campaign.name == "Test Campaign 1")
-            )
-            campaign = result.scalar_one_or_none()
+    session = await get_async_session()
+    try:
+        # Get test campaign
+        from sqlalchemy import select
+        result = await session.execute(
+            select(Campaign).where(Campaign.name == "Test Campaign 1")
+        )
+        campaign = result.scalar_one_or_none()
             
             if not campaign:
                 print_error("Test campaign not found")
@@ -280,29 +282,31 @@ invalid_phone,Тест Тестов,,Невалидный номер
                 )
                 print_error("Should have raised CallListValidationError")
                 return False
-            except CallListValidationError as e:
-                print_success(f"Validation error caught: {e}")
-            
-            return True
-            
-        except Exception as e:
-            print_error(f"Test failed: {e}")
-            import traceback
-            traceback.print_exc()
-            return False
+        except CallListValidationError as e:
+            print_success(f"Validation error caught: {e}")
+        
+        return True
+        
+    except Exception as e:
+        print_error(f"Test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+    finally:
+        await session.close()
 
 
 async def test_campaign_lifecycle():
     """Test 3: Campaign start/pause operations."""
     print_header("ТЕСТ 3: Campaign Lifecycle")
     
-    async for session in get_async_session():
-        try:
-            # Get test campaign
-            from sqlalchemy import select
-            result = await session.execute(
-                select(Campaign).where(Campaign.name == "Test Campaign 1")
-            )
+    session = await get_async_session()
+    try:
+        # Get test campaign
+        from sqlalchemy import select
+        result = await session.execute(
+            select(Campaign).where(Campaign.name == "Test Campaign 1")
+        )
             campaign = result.scalar_one_or_none()
             
             if not campaign:
@@ -344,23 +348,25 @@ async def test_campaign_lifecycle():
             assert any(c.id == campaign.id for c in active)
             print_success(f"Active campaigns: {len(active)}")
             
-            return True
-            
-        except Exception as e:
-            print_error(f"Test failed: {e}")
-            import traceback
-            traceback.print_exc()
-            return False
+        return True
+        
+    except Exception as e:
+        print_error(f"Test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+    finally:
+        await session.close()
 
 
 async def test_task_queue_management():
     """Test 4: Task queue management (get_next_task)."""
     print_header("ТЕСТ 4: Task Queue Management")
     
-    async for session in get_async_session():
-        try:
-            # Get test campaign
-            from sqlalchemy import select
+    session = await get_async_session()
+    try:
+        # Get test campaign
+        from sqlalchemy import select
             result = await session.execute(
                 select(Campaign).where(Campaign.name == "Test Campaign 1")
             )
@@ -404,23 +410,25 @@ async def test_task_queue_management():
             else:
                 print_error(f"Rate limit exceeded: {len(tasks)} > {campaign.max_concurrent_calls}")
             
-            return True
-            
-        except Exception as e:
-            print_error(f"Test failed: {e}")
-            import traceback
-            traceback.print_exc()
-            return False
+        return True
+        
+    except Exception as e:
+        print_error(f"Test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+    finally:
+        await session.close()
 
 
 async def test_task_status_transitions():
     """Test 5: Task status transitions."""
     print_header("ТЕСТ 5: Task Status Transitions")
     
-    async for session in get_async_session():
-        try:
-            # Get a pending task
-            from sqlalchemy import select
+    session = await get_async_session()
+    try:
+        # Get a pending task
+        from sqlalchemy import select
             result = await session.execute(
                 select(CallTask)
                 .where(CallTask.status == "pending")
@@ -490,13 +498,15 @@ async def test_task_status_transitions():
                     assert updated.status == "failed"
                     print_success(f"Task marked failed (max retries reached)")
             
-            return True
-            
-        except Exception as e:
-            print_error(f"Test failed: {e}")
-            import traceback
-            traceback.print_exc()
-            return False
+        return True
+        
+    except Exception as e:
+        print_error(f"Test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+    finally:
+        await session.close()
 
 
 async def main():
