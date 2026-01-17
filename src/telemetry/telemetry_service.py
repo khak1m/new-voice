@@ -18,7 +18,7 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from database.models import CallMetrics, CallLog
+from src.database.models import CallMetrics, CallLog
 
 logger = logging.getLogger(__name__)
 

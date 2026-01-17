@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import selectinload
 
-from database.models import Campaign, CallTask, Skillbase, Company
+from src.database.models import Campaign, CallTask, Skillbase, Company
 
 logger = logging.getLogger(__name__)
 

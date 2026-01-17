@@ -18,8 +18,8 @@ from uuid import UUID, uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 from livekit import api
 
-from database.models import CallTask, Campaign, Call
-from services.campaign_service import CampaignService
+from src.database.models import CallTask, Campaign, Call
+from src.services.campaign_service import CampaignService
 
 logger = logging.getLogger(__name__)
 
