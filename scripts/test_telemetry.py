@@ -63,7 +63,9 @@ async def test_telemetry_service():
         print("✅ TelemetryService создан")
         
         # Тест 1: Запись turn metrics
-        call_id = "test-call-123"
+        from uuid import uuid4
+        call_uuid = uuid4()
+        call_id = str(call_uuid)
         
         turn1 = TurnMetrics(
             turn_number=1,
@@ -98,9 +100,6 @@ async def test_telemetry_service():
         print("✅ Turn 2 записан")
         
         # Тест 2: Агрегация метрик
-        from uuid import uuid4
-        call_uuid = uuid4()
-        
         metrics = await telemetry.finalize_call(
             call_id=call_uuid,
             outcome="success",
