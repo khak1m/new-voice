@@ -44,15 +44,15 @@ load_dotenv()
 SKILLBASE_ID = os.getenv("SKILLBASE_ID")
 
 
-async def load_skillbase_config(skillbase_id: UUID) -> tuple[SkillbaseConfig, str, ScenarioEngine]:
+async def load_skillbase_config(skillbase_id: UUID) -> tuple[SkillbaseConfig, str, ScenarioEngine, list]:
     """
-    Загрузить Skillbase из БД и создать ScenarioEngine.
+    Загрузить Skillbase из БД и создать ScenarioEngine + Tools.
     
     Args:
         skillbase_id: UUID Skillbase
         
     Returns:
-        Tuple (SkillbaseConfig, company_name, ScenarioEngine)
+        Tuple (SkillbaseConfig, company_name, ScenarioEngine, tools)
         
     Raises:
         ValueError: Если Skillbase не найден
@@ -72,8 +72,8 @@ async def load_skillbase_config(skillbase_id: UUID) -> tuple[SkillbaseConfig, st
         # Получаем название компании
         company_name = skillbase.company.name if skillbase.company else "Компания"
         
-        # Конвертируем Skillbase config → ScenarioEngine config
-        scenario_config = convert_skillbase_to_scenario(
+        # Конвертируем Skillbase config → ScenarioEngine config + Tools
+        scenario_config, tools = convert_skillbase_to_scenario(
             config,
             str(skillbase.id),
             company_name
@@ -89,8 +89,11 @@ async def load_skillbase_config(skillbase_id: UUID) -> tuple[SkillbaseConfig, st
         print(f"[Skillbase] STT: {config.voice.stt_provider}")
         print(f"[ScenarioEngine] States: {len(scenario_config.states)}")
         print(f"[ScenarioEngine] Transitions: {len(scenario_config.transitions)}")
+        print(f"[Tools] Loaded: {len(tools)} tools")
+        for tool in tools:
+            print(f"  - {tool.name}: {tool.description}")
         
-        return config, company_name, engine
+        return config, company_name, engine, tools
 
 
 def create_llm_from_config(config: SkillbaseConfig):
@@ -179,9 +182,9 @@ async def entrypoint(ctx: JobContext):
     await ctx.connect()
     print(f"[Agent] Подключен к комнате: {ctx.room.name}")
     
-    # Загружаем Skillbase из БД и создаём ScenarioEngine
+    # Загружаем Skillbase из БД и создаём ScenarioEngine + Tools
     try:
-        config, company_name, engine = await load_skillbase_config(skillbase_id)
+        config, company_name, engine, tools = await load_skillbase_config(skillbase_id)
     except Exception as e:
         print(f"[ERROR] Не удалось загрузить Skillbase: {e}")
         import traceback

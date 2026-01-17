@@ -7,8 +7,8 @@ ScenarioEngine использует полную схему (StateConfig, Transi
 Этот адаптер делает мост между ними.
 """
 
-from typing import List, Dict, Any
-from schemas.skillbase_schemas import SkillbaseConfig, FlowType
+from typing import List, Dict, Any, Tuple
+from schemas.skillbase_schemas import SkillbaseConfig, FlowType, ToolConfig as SkillbaseToolConfig
 from scenario_engine.models import (
     ScenarioConfig,
     BotPersonality,
@@ -23,6 +23,7 @@ from scenario_engine.models import (
     FieldToCollect,
     FieldType,
 )
+from tools.base import get_registry, Tool
 
 
 class SkillbaseToScenarioAdapter:
@@ -40,9 +41,9 @@ class SkillbaseToScenarioAdapter:
         skillbase: SkillbaseConfig,
         skillbase_id: str,
         company_name: str = "Компания"
-    ) -> ScenarioConfig:
+    ) -> Tuple[ScenarioConfig, List[Tool]]:
         """
-        Конвертировать Skillbase config в ScenarioEngine config.
+        Конвертировать Skillbase config в ScenarioEngine config + Tools.
         
         Args:
             skillbase: Skillbase конфигурация
@@ -50,7 +51,7 @@ class SkillbaseToScenarioAdapter:
             company_name: Название компании
             
         Returns:
-            ScenarioConfig для ScenarioEngine
+            Tuple (ScenarioConfig, List[Tool]) для ScenarioEngine
         """
         adapter = SkillbaseToScenarioAdapter()
         
@@ -69,10 +70,13 @@ class SkillbaseToScenarioAdapter:
         # Конвертируем guardrails
         guardrails = adapter._convert_guardrails(skillbase)
         
+        # Конвертируем tools
+        tools = adapter._convert_tools(skillbase)
+        
         # Лимиты (дефолтные)
         limits = LimitsConfig()
         
-        return ScenarioConfig(
+        scenario_config = ScenarioConfig(
             version="2.0",
             bot_id=skillbase_id,
             personality=personality,
@@ -85,6 +89,8 @@ class SkillbaseToScenarioAdapter:
             knowledge_base_id=None,  # TODO: добавить когда будет интеграция с KB
             rag_min_score=0.7
         )
+        
+        return scenario_config, tools
     
     def _convert_personality(
         self,
@@ -338,13 +344,35 @@ class SkillbaseToScenarioAdapter:
                     guardrails.append(guardrail)
         
         return guardrails
+    
+    def _convert_tools(self, skillbase: SkillbaseConfig) -> List[Tool]:
+        """Конвертировать tools из Skillbase в Tool instances."""
+        tools = []
+        registry = get_registry()
+        
+        for tool_config in skillbase.tools:
+            if not tool_config.enabled:
+                continue
+            
+            # Получаем tool из реестра
+            tool = registry.get(tool_config.name, tool_config.config)
+            
+            if tool:
+                tools.append(tool)
+            else:
+                # Логируем warning если tool не найден
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Tool '{tool_config.name}' not found in registry")
+        
+        return tools
 
 
 def convert_skillbase_to_scenario(
     skillbase: SkillbaseConfig,
     skillbase_id: str,
     company_name: str = "Компания"
-) -> ScenarioConfig:
+) -> Tuple[ScenarioConfig, List[Tool]]:
     """
     Удобная функция для конвертации.
     
@@ -354,11 +382,11 @@ def convert_skillbase_to_scenario(
         company_name: Название компании
         
     Returns:
-        ScenarioConfig для ScenarioEngine
+        Tuple (ScenarioConfig, List[Tool]) для ScenarioEngine
         
     Example:
         >>> from schemas.skillbase_schemas import SkillbaseConfig
         >>> config = SkillbaseConfig(**skillbase.config)
-        >>> scenario = convert_skillbase_to_scenario(config, str(skillbase.id), "Салон")
+        >>> scenario, tools = convert_skillbase_to_scenario(config, str(skillbase.id), "Салон")
     """
     return SkillbaseToScenarioAdapter.convert(skillbase, skillbase_id, company_name)

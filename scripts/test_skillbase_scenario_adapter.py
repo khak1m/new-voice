@@ -76,14 +76,17 @@ def test_adapter():
         skillbase_config = SkillbaseConfig(**skillbase_config_dict)
         print("✅ Skillbase config валиден")
         
-        # Конвертируем в ScenarioEngine config
-        scenario_config = convert_skillbase_to_scenario(
+        # Конвертируем в ScenarioEngine config + Tools
+        scenario_config, tools = convert_skillbase_to_scenario(
             skillbase_config,
             "test-skillbase-id",
             "Салон красоты 'Элегант'"
         )
         
         print("✅ Конвертация успешна")
+        print(f"✅ Tools загружены: {len(tools)}")
+        for tool in tools:
+            print(f"   - {tool.name}: {tool.description}")
         
         # Проверяем результат
         print("\n" + "=" * 70)
