@@ -1,9 +1,10 @@
 """
-Voice Agent с загрузкой конфигурации из Skillbase (БД).
+Voice Agent с загрузкой конфигурации из Skillbase (БД) + ScenarioEngine.
 
 Этот агент:
 - Загружает Skillbase из PostgreSQL по ID
-- Генерирует system prompt из Skillbase.config
+- Конвертирует Skillbase.config → ScenarioEngine.config
+- Использует ScenarioEngine для управления диалогом
 - Использует настройки LLM, TTS, STT из конфигурации
 - Поддерживает интеграцию с Knowledge Base
 
@@ -33,6 +34,8 @@ from database.connection import get_async_db
 from services.skillbase_service import SkillbaseService
 from schemas.skillbase_schemas import SkillbaseConfig
 from prompts.skillbase_prompt_builder import build_prompt_from_skillbase
+from adapters.skillbase_to_scenario import convert_skillbase_to_scenario
+from scenario_engine.engine import ScenarioEngine
 
 # Загружаем переменные окружения
 load_dotenv()
@@ -41,15 +44,15 @@ load_dotenv()
 SKILLBASE_ID = os.getenv("SKILLBASE_ID")
 
 
-async def load_skillbase_config(skillbase_id: UUID) -> tuple[SkillbaseConfig, str]:
+async def load_skillbase_config(skillbase_id: UUID) -> tuple[SkillbaseConfig, str, ScenarioEngine]:
     """
-    Загрузить Skillbase из БД и вернуть конфигурацию.
+    Загрузить Skillbase из БД и создать ScenarioEngine.
     
     Args:
         skillbase_id: UUID Skillbase
         
     Returns:
-        Tuple (SkillbaseConfig, company_name)
+        Tuple (SkillbaseConfig, company_name, ScenarioEngine)
         
     Raises:
         ValueError: Если Skillbase не найден
@@ -69,13 +72,25 @@ async def load_skillbase_config(skillbase_id: UUID) -> tuple[SkillbaseConfig, st
         # Получаем название компании
         company_name = skillbase.company.name if skillbase.company else "Компания"
         
+        # Конвертируем Skillbase config → ScenarioEngine config
+        scenario_config = convert_skillbase_to_scenario(
+            config,
+            str(skillbase.id),
+            company_name
+        )
+        
+        # Создаём ScenarioEngine
+        engine = ScenarioEngine(scenario_config)
+        
         print(f"[Skillbase] Загружен: {skillbase.name} (v{skillbase.version})")
         print(f"[Skillbase] Компания: {company_name}")
         print(f"[Skillbase] LLM: {config.llm.provider}/{config.llm.model}")
         print(f"[Skillbase] TTS: {config.voice.tts_provider}")
         print(f"[Skillbase] STT: {config.voice.stt_provider}")
+        print(f"[ScenarioEngine] States: {len(scenario_config.states)}")
+        print(f"[ScenarioEngine] Transitions: {len(scenario_config.transitions)}")
         
-        return config, company_name
+        return config, company_name, engine
 
 
 def create_llm_from_config(config: SkillbaseConfig):
@@ -164,9 +179,9 @@ async def entrypoint(ctx: JobContext):
     await ctx.connect()
     print(f"[Agent] Подключен к комнате: {ctx.room.name}")
     
-    # Загружаем Skillbase из БД
+    # Загружаем Skillbase из БД и создаём ScenarioEngine
     try:
-        config, company_name = await load_skillbase_config(skillbase_id)
+        config, company_name, engine = await load_skillbase_config(skillbase_id)
     except Exception as e:
         print(f"[ERROR] Не удалось загрузить Skillbase: {e}")
         import traceback
@@ -203,12 +218,19 @@ async def entrypoint(ctx: JobContext):
     # Запускаем
     await session.start(agent, room=ctx.room)
     
-    # Приветствие (пока дефолтное, потом добавим в config)
-    greeting = "Здравствуйте! Чем могу помочь?"
+    # Начинаем звонок через ScenarioEngine
+    call_id = ctx.room.name
+    greeting = engine.start_call(call_id, direction="inbound")
+    
+    # Отправляем приветствие
     await session.say(greeting)
     
     print(f"[Agent] Приветствие: {greeting}")
     print("[Agent] Агент запущен, ожидаю голос...")
+    print(f"[ScenarioEngine] Текущий этап: {engine.get_context().current_state_id}")
+    
+    # TODO: Интегрировать обработку реплик через engine.process_turn()
+    # Пока работает через стандартный Agent loop
 
 
 if __name__ == "__main__":
