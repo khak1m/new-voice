@@ -8,7 +8,7 @@ Author: Senior Backend Engineer
 Date: 2026-01-17
 """
 
-from typing import List, Dict, Any, Optional, Literal
+from typing import List, Dict, Any, Optional, Literal, Union
 from pydantic import BaseModel, Field, field_validator, model_validator
 from enum import Enum
 
@@ -157,6 +157,10 @@ class FlowConfig(BaseModel):
     Supports:
     - Linear: Sequential states (greeting -> inquiry -> booking -> confirmation)
     - Graph: Complex state machine with conditional transitions
+    
+    States can be:
+    - Simple strings (for linear flows): ["greeting", "inquiry", "booking"]
+    - StateConfig objects (for complex flows with prompts)
     """
     
     type: FlowType = Field(
@@ -164,9 +168,9 @@ class FlowConfig(BaseModel):
         description="Flow type: 'linear' for sequential, 'graph' for state machine"
     )
     
-    states: List[StateConfig] = Field(
+    states: List[Union[str, StateConfig]] = Field(
         ...,
-        description="List of conversation states",
+        description="List of conversation states (strings or StateConfig objects)",
         min_items=1
     )
     
@@ -183,7 +187,14 @@ class FlowConfig(BaseModel):
         
         # For graph type, validate transitions reference valid states
         if self.type == FlowType.GRAPH and self.transitions:
-            state_ids = {state.id for state in self.states}
+            # Extract state IDs (handle both string and StateConfig)
+            state_ids = set()
+            for state in self.states:
+                if isinstance(state, str):
+                    state_ids.add(state)
+                else:
+                    state_ids.add(state.id)
+            
             for transition in self.transitions:
                 if transition.from_state not in state_ids:
                     raise ValueError(f"Transition references unknown state: {transition.from_state}")
