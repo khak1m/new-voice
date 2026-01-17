@@ -51,22 +51,36 @@ def print_error(text: str):
 async def cleanup_test_data(session):
     """Clean up test data."""
     try:
-        # Delete test campaigns
-        from sqlalchemy import delete
-        await session.execute(
-            delete(CallTask).where(CallTask.campaign_id.in_(
-                session.query(Campaign.id).filter(Campaign.name.like("Test Campaign%"))
-            ))
+        # Delete test data in correct order (respecting foreign keys)
+        from sqlalchemy import delete, select
+        
+        # Get test campaign IDs first
+        campaign_result = await session.execute(
+            select(Campaign.id).where(Campaign.name.like("Test Campaign%"))
         )
+        campaign_ids = [row[0] for row in campaign_result.all()]
+        
+        # Delete call tasks
+        if campaign_ids:
+            await session.execute(
+                delete(CallTask).where(CallTask.campaign_id.in_(campaign_ids))
+            )
+        
+        # Delete campaigns
         await session.execute(
             delete(Campaign).where(Campaign.name.like("Test Campaign%"))
         )
+        
+        # Delete skillbases
         await session.execute(
             delete(Skillbase).where(Skillbase.name.like("Test Skillbase%"))
         )
+        
+        # Delete companies
         await session.execute(
             delete(Company).where(Company.name.like("Test Company%"))
         )
+        
         await session.commit()
     except Exception as e:
         print(f"⚠️  Cleanup warning: {e}")
@@ -85,6 +99,7 @@ async def test_campaign_creation():
         company = Company(
             id=uuid4(),
             name="Test Company 1",
+            slug="test-company-1",
             email="test1@example.com"
         )
         session.add(company)
