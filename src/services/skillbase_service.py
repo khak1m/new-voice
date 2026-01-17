@@ -28,8 +28,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from pydantic import ValidationError
 
-from database.models import Skillbase, Company, KnowledgeBase
-from schemas.skillbase_schemas import SkillbaseConfig
+from src.database.models import Skillbase, Company, KnowledgeBase
+from src.schemas.skillbase_schemas import SkillbaseConfig
 
 
 # Configure logger
