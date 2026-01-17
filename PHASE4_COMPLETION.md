@@ -415,17 +415,29 @@ CREATE TABLE call_tasks (
 
 ## 🔜 Следующие шаги
 
-### Task 15: Campaign Worker Implementation (НЕ РЕАЛИЗОВАНО)
+### Task 15: Campaign Worker Implementation ✅ IN PROGRESS
 
-**Что нужно сделать:**
-1. Создать `src/workers/campaign_worker.py`
-2. Реализовать CampaignWorker class:
+**Что реализовано:**
+1. ✅ **Task 15.1** - CampaignWorker class создан
    - Background task processing loop
-   - Graceful start/stop
-   - Task execution (create LiveKit room, dial, run VoiceAgent)
-   - Error handling and recovery
+   - Graceful start/stop с ожиданием активных задач
+   - Polling активных кампаний
+   - Spawning background tasks для каждого звонка
 
-**Оценка времени:** 4-6 часов
+2. ✅ **Task 15.3** - Error handling and recovery
+   - Try/catch для всех операций
+   - Automatic retry через mark_failed()
+   - Structured logging с контекстом
+   - Graceful recovery on restart
+
+**Что осталось:**
+3. ⏳ **Task 15.2** - Task execution (TODO)
+   - Create LiveKit room
+   - Dial phone number
+   - Run VoiceAgent
+   - Update task status with real call_id
+
+**Оценка времени:** 2-3 часа
 
 ---
 
@@ -446,10 +458,10 @@ CREATE TABLE call_tasks (
 ```
 Task 13: Campaign Service Implementation    ██████████ 100% ✅
 Task 14: Call Task Management               ██████████ 100% ✅
-Task 15: Campaign Worker Implementation     ░░░░░░░░░░   0%
+Task 15: Campaign Worker Implementation     ███████░░░  70% ⏳
 Task 16: Checkpoint                         ░░░░░░░░░░   0%
 ─────────────────────────────────────────────────────────────
-Phase 4 Progress:                           █████░░░░░  50%
+Phase 4 Progress:                           ███████░░░  67.5%
 ```
 
 ---
