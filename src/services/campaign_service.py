@@ -604,7 +604,10 @@ class CampaignService:
             return task
             
         except Exception as e:
-            await self.db_session.rollback()
+            try:
+                await self.db_session.rollback()
+            except Exception:
+                pass  # Ignore rollback errors (session may be in invalid state)
             logger.error(f"Failed to mark task in progress: {e}", exc_info=True)
             raise
     
@@ -643,7 +646,10 @@ class CampaignService:
             return task
             
         except Exception as e:
-            await self.db_session.rollback()
+            try:
+                await self.db_session.rollback()
+            except Exception:
+                pass  # Ignore rollback errors (session may be in invalid state)
             logger.error(f"Failed to mark task completed: {e}", exc_info=True)
             raise
     
@@ -691,7 +697,10 @@ class CampaignService:
             return task
             
         except Exception as e:
-            await self.db_session.rollback()
+            try:
+                await self.db_session.rollback()
+            except Exception:
+                pass  # Ignore rollback errors (session may be in invalid state)
             logger.error(f"Failed to mark task failed: {e}", exc_info=True)
             raise
     
