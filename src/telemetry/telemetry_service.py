@@ -157,20 +157,20 @@ class TelemetryService:
                 call_metrics = CallMetrics(
                     call_id=call_id,
                     
-                    # Latency aggregates
-                    avg_ttfb_stt=aggregates["avg_ttfb_stt"],
-                    avg_latency_llm=aggregates["avg_latency_llm"],
-                    avg_ttfb_tts=aggregates["avg_ttfb_tts"],
-                    avg_eou_latency=aggregates["avg_eou_latency"],
+                    # Latency aggregates (field names match database model)
+                    ttfb_stt_avg=aggregates["ttfb_stt_avg"],
+                    latency_llm_avg=aggregates["latency_llm_avg"],
+                    ttfb_tts_avg=aggregates["ttfb_tts_avg"],
+                    eou_latency_avg=aggregates["eou_latency_avg"],
                     
-                    min_ttfb_stt=aggregates["min_ttfb_stt"],
-                    max_ttfb_stt=aggregates["max_ttfb_stt"],
-                    min_latency_llm=aggregates["min_latency_llm"],
-                    max_latency_llm=aggregates["max_latency_llm"],
-                    min_ttfb_tts=aggregates["min_ttfb_tts"],
-                    max_ttfb_tts=aggregates["max_ttfb_tts"],
-                    min_eou_latency=aggregates["min_eou_latency"],
-                    max_eou_latency=aggregates["max_eou_latency"],
+                    ttfb_stt_min=aggregates["ttfb_stt_min"],
+                    ttfb_stt_max=aggregates["ttfb_stt_max"],
+                    latency_llm_min=aggregates["latency_llm_min"],
+                    latency_llm_max=aggregates["latency_llm_max"],
+                    ttfb_tts_min=aggregates["ttfb_tts_min"],
+                    ttfb_tts_max=aggregates["ttfb_tts_max"],
+                    eou_latency_min=aggregates["eou_latency_min"],
+                    eou_latency_max=aggregates["eou_latency_max"],
                     
                     # Usage metrics
                     stt_duration_sec=stt_duration_sec,
@@ -197,7 +197,7 @@ class TelemetryService:
                 for turn in turns:
                     call_log = CallLog(
                         call_id=call_id,
-                        turn_number=turn.turn_number,
+                        turn_index=turn.turn_number,
                         role=turn.role,
                         content=turn.content,
                         state_id=turn.state_id,
@@ -208,7 +208,7 @@ class TelemetryService:
                         llm_input_tokens=turn.llm_input_tokens,
                         llm_output_tokens=turn.llm_output_tokens,
                         tts_characters=turn.tts_characters,
-                        timestamp=turn.timestamp
+                        created_at=turn.timestamp
                     )
                     self.db_session.add(call_log)
                 
@@ -265,21 +265,21 @@ class TelemetryService:
             return max(values) if values else None
         
         return {
-            # Latency averages
-            "avg_ttfb_stt": safe_avg(ttfb_stt_values),
-            "avg_latency_llm": safe_avg(latency_llm_values),
-            "avg_ttfb_tts": safe_avg(ttfb_tts_values),
-            "avg_eou_latency": safe_avg(eou_latency_values),
+            # Latency averages (field names match database model)
+            "ttfb_stt_avg": safe_avg(ttfb_stt_values),
+            "latency_llm_avg": safe_avg(latency_llm_values),
+            "ttfb_tts_avg": safe_avg(ttfb_tts_values),
+            "eou_latency_avg": safe_avg(eou_latency_values),
             
-            # Latency min/max
-            "min_ttfb_stt": safe_min(ttfb_stt_values),
-            "max_ttfb_stt": safe_max(ttfb_stt_values),
-            "min_latency_llm": safe_min(latency_llm_values),
-            "max_latency_llm": safe_max(latency_llm_values),
-            "min_ttfb_tts": safe_min(ttfb_tts_values),
-            "max_ttfb_tts": safe_max(ttfb_tts_values),
-            "min_eou_latency": safe_min(eou_latency_values),
-            "max_eou_latency": safe_max(eou_latency_values),
+            # Latency min/max (field names match database model)
+            "ttfb_stt_min": safe_min(ttfb_stt_values),
+            "ttfb_stt_max": safe_max(ttfb_stt_values),
+            "latency_llm_min": safe_min(latency_llm_values),
+            "latency_llm_max": safe_max(latency_llm_values),
+            "ttfb_tts_min": safe_min(ttfb_tts_values),
+            "ttfb_tts_max": safe_max(ttfb_tts_values),
+            "eou_latency_min": safe_min(eou_latency_values),
+            "eou_latency_max": safe_max(eou_latency_values),
             
             # Token/character totals
             "total_llm_input_tokens": sum(t.llm_input_tokens for t in turns),
@@ -324,7 +324,7 @@ class TelemetryService:
             result = await self.db_session.execute(
                 select(CallLog)
                 .where(CallLog.call_id == call_id)
-                .order_by(CallLog.turn_number)
+                .order_by(CallLog.turn_index)
             )
             return list(result.scalars().all())
         except Exception as e:

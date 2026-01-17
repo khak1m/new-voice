@@ -158,6 +158,24 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
             raise
 
 
+async def get_async_session() -> AsyncSession:
+    """
+    Get a new async database session.
+    
+    Usage:
+        session = await get_async_session()
+        try:
+            # Use session
+            await session.commit()
+        except:
+            await session.rollback()
+        finally:
+            await session.close()
+    """
+    AsyncSessionLocal = get_async_session_factory()
+    return AsyncSessionLocal()
+
+
 # =============================================================================
 # Инициализация
 # =============================================================================
