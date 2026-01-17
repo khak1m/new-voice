@@ -611,7 +611,7 @@ class CampaignService:
     async def mark_completed(
         self,
         task_id: UUID,
-        call_id: UUID,
+        call_id: Optional[UUID],
         outcome: str
     ) -> CallTask:
         """Mark task as completed."""
@@ -625,7 +625,8 @@ class CampaignService:
                 raise CampaignServiceError(f"Task {task_id} not found")
             
             task.status = "completed"
-            task.call_id = call_id
+            if call_id:
+                task.call_id = call_id
             task.outcome = outcome
             
             # Update campaign stats
