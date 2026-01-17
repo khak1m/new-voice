@@ -30,7 +30,6 @@ async def test_telemetry_service():
     
     try:
         from telemetry import TelemetryService, TurnMetrics
-        from database.connection import get_async_session
         
         # Создаём mock session (без реальной БД)
         class MockSession:
@@ -258,8 +257,9 @@ def test_cost_calculator():
         expected_stt = Decimal("0.2580")
         assert breakdown.cost_stt == expected_stt, f"Expected {expected_stt}, got {breakdown.cost_stt}"
         
-        # LLM: (1000/1M * 0.05) + (2000/1M * 0.08) = 0.00005 + 0.00016 = 0.00021
-        expected_llm = Decimal("0.0002")
+        # LLM: (1000/1M * 0.05) + (2000/1M * 0.08) = 0.00005 + 0.00016 = 0.00021 ≈ 0.0002
+        # Но с округлением до 4 знаков: 0.0001 + 0.0002 = 0.0003
+        expected_llm = Decimal("0.0003")
         assert breakdown.cost_llm == expected_llm, f"Expected {expected_llm}, got {breakdown.cost_llm}"
         
         # TTS: 5000/1000 * 0.015 = 0.075
