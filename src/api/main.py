@@ -23,9 +23,9 @@ load_dotenv()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle события приложения."""
-    print("🚀 NEW-VOICE API запускается...")
+    print("NEW-VOICE API запускается...")
     yield
-    print("👋 NEW-VOICE API останавливается...")
+    print("NEW-VOICE API останавливается...")
 
 
 # Создаём приложение
