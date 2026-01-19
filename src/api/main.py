@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from .routers import bots, knowledge_bases, calls, leads, health, dashboard, skillbases, campaigns, analytics
+from .routers import bots, knowledge_bases, calls, leads, health, dashboard, skillbases, campaigns, analytics, companies
 
 load_dotenv()
 
@@ -53,6 +53,7 @@ if static_dir.exists():
 # Подключаем роутеры
 app.include_router(health.router, tags=["Health"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
+app.include_router(companies.router, prefix="/api/companies", tags=["Companies"])
 app.include_router(bots.router, prefix="/api/bots", tags=["Bots"])
 app.include_router(knowledge_bases.router, prefix="/api/knowledge-bases", tags=["Knowledge Bases"])
 app.include_router(calls.router, prefix="/api/calls", tags=["Calls"])
