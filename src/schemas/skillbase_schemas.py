@@ -1,498 +1,467 @@
 """
 Pydantic schemas for Skillbase configuration validation.
 
-These schemas validate the JSONB config field structure according to
-the "Sasha AI" specification defined in the design document.
+Based on Sasha AI specification with 5 tabs:
+1. Context (role, style, rules, facts, voice, language)
+2. Flow (greeting phrases, conversation plan)
+3. Agent (lead transfer, closing message)
+4. Tools (transfer call, end call, etc.)
+5. Knowledge Base (document IDs)
 
 Author: Senior Backend Engineer
-Date: 2026-01-17
+Date: 2026-01-21
 """
 
-from typing import List, Dict, Any, Optional, Literal, Union
-from pydantic import BaseModel, Field, field_validator, model_validator
-from enum import Enum
+from typing import List, Dict, Any, Optional, Literal
+from pydantic import BaseModel, Field, field_validator
+from uuid import UUID
 
 
 # =============================================================================
-# Enums
+# Enums and Constants
 # =============================================================================
 
-class FlowType(str, Enum):
-    """Type of conversation flow."""
-    LINEAR = "linear"
-    GRAPH = "graph"
-
-
-class TTSProvider(str, Enum):
-    """Text-to-Speech provider."""
-    CARTESIA = "cartesia"
-    ELEVENLABS = "elevenlabs"
-    OPENAI = "openai"
-
-
-class STTProvider(str, Enum):
-    """Speech-to-Text provider."""
-    DEEPGRAM = "deepgram"
-    ASSEMBLYAI = "assemblyai"
-    OPENAI = "openai"
-
-
-class LLMProvider(str, Enum):
-    """LLM provider."""
-    GROQ = "groq"
-    OPENAI = "openai"
-    OLLAMA = "ollama"
-    ANTHROPIC = "anthropic"
+AVAILABLE_LANGUAGES = ["ru", "en", "es", "de", "fr", "it", "pt"]
+AVAILABLE_VOICES = [
+    {"id": "sasha_v1", "name": "Саша v1", "gender": "female", "style": "friendly"},
+    {"id": "dima_v1", "name": "Дима v1", "gender": "male", "style": "business"},
+    {"id": "sergey_v1", "name": "Сергей v1", "gender": "male", "style": "calm"},
+    {"id": "tatyana_v1", "name": "Татьяна v1", "gender": "female", "style": "trustworthy"},
+]
 
 
 # =============================================================================
-# Context Configuration
+# TAB 1: Context Configuration
 # =============================================================================
+
+class LeadCriteria(BaseModel):
+    """Критерий передачи лида."""
+    condition: str = Field(..., max_length=500)
+    action: str = Field(..., max_length=500)
+
 
 class ContextConfig(BaseModel):
     """
-    Context configuration for the bot's personality and knowledge.
+    TAB 1: Контекст
     
-    Defines:
-    - Role: Who the bot is (e.g., "Receptionist at beauty salon")
-    - Style: How the bot communicates (e.g., "Friendly and professional")
-    - Safety rules: What the bot must NOT do
-    - Facts: Static knowledge the bot should know
+    Определяет личность и поведение ИИ бота.
     """
     
     role: str = Field(
         ...,
-        description="Bot's role/identity (e.g., 'Receptionist at beauty salon')",
+        description="Роль продавца (до 500 символов)",
         min_length=1,
         max_length=500
     )
     
     style: str = Field(
         ...,
-        description="Communication style (e.g., 'Friendly and professional')",
+        description="Стиль речи (до 500 символов)",
         min_length=1,
         max_length=500
     )
     
-    safety_rules: List[str] = Field(
+    rules: List[str] = Field(
         default_factory=list,
-        description="List of rules the bot must follow (e.g., 'Never give medical advice')"
+        description="Важные правила (каждое до 500 символов)"
     )
     
     facts: List[str] = Field(
         default_factory=list,
-        description="Static facts the bot should know (e.g., 'We work 9am-9pm')"
+        description="Аргументы и факты (каждый до 500 символов)"
     )
     
-    @field_validator('safety_rules', 'facts')
+    lead_criteria: List[LeadCriteria] = Field(
+        default_factory=list,
+        description="Критерии передачи лида"
+    )
+    
+    language: str = Field(
+        default="ru",
+        description="Язык ИИ бота"
+    )
+    
+    voice_id: str = Field(
+        default="sasha_v1",
+        description="ID голоса"
+    )
+    
+    max_call_duration: int = Field(
+        default=600,
+        description="Максимальная длительность звонка (секунды)",
+        ge=60,
+        le=3600
+    )
+    
+    @field_validator('rules', 'facts')
     @classmethod
     def validate_list_items(cls, v):
-        """Ensure list items are non-empty strings."""
-        if v:
-            for item in v:
-                if not isinstance(item, str) or not item.strip():
-                    raise ValueError("List items must be non-empty strings")
+        """Проверка элементов списка."""
+        for item in v:
+            if not isinstance(item, str) or not item.strip():
+                raise ValueError("Элементы списка должны быть непустыми строками")
+            if len(item) > 500:
+                raise ValueError("Элемент списка не должен превышать 500 символов")
         return v
     
     class Config:
         json_schema_extra = {
             "example": {
-                "role": "Receptionist at beauty salon 'Glamour'",
-                "style": "Friendly, professional, helpful",
-                "safety_rules": [
-                    "Never give medical advice",
-                    "Never discuss prices without checking availability"
+                "role": "Тебя зовут Зиля, ты живой сотрудник. Ты работаешь в управляющей компании...",
+                "style": "Говори максимально кратко и по делу. Один вопрос — одна короткая фраза...",
+                "rules": [
+                    "Отвечай опираясь на последнюю речь клиента",
+                    "Не сдавайся. Если клиент отказывает — сохраняй спокойствие..."
                 ],
                 "facts": [
-                    "We work Monday-Sunday 9am-9pm",
-                    "We accept cash and cards",
-                    "Parking is available"
+                    "Мы работаем с 9:00 до 21:00",
+                    "Принимаем оплату картой и наличными"
+                ],
+                "lead_criteria": [],
+                "language": "ru",
+                "voice_id": "sasha_v1",
+                "max_call_duration": 600
+            }
+        }
+
+
+# =============================================================================
+# TAB 2: Flow Configuration
+# =============================================================================
+
+class FlowConfig(BaseModel):
+    """
+    TAB 2: План разговора
+    
+    Определяет структуру разговора.
+    """
+    
+    greeting_phrases: List[str] = Field(
+        default_factory=list,
+        description="Начало разговора (макс. 3 фразы, каждая до 500 символов)",
+        max_items=3
+    )
+    
+    conversation_plan: List[str] = Field(
+        default_factory=list,
+        description="План разговора (каждый пункт до 500 символов)"
+    )
+    
+    @field_validator('greeting_phrases', 'conversation_plan')
+    @classmethod
+    def validate_phrases(cls, v):
+        """Проверка фраз."""
+        for item in v:
+            if not isinstance(item, str) or not item.strip():
+                raise ValueError("Фразы должны быть непустыми строками")
+            if len(item) > 500:
+                raise ValueError("Фраза не должна превышать 500 символов")
+        return v
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "greeting_phrases": [
+                    "Алло...",
+                    "Даа, добрый день... подскажите от управляющей компании вам, квитанции приходят верно?"
+                ],
+                "conversation_plan": [
+                    "Узнай как к собеседнику обращаться",
+                    "Подтверди что это владелец квартиры",
+                    "Сообщи о задолженности по оплате коммунальных услуг"
                 ]
             }
         }
 
 
 # =============================================================================
-# Flow Configuration
+# TAB 3: Agent Configuration
 # =============================================================================
 
-class StateConfig(BaseModel):
-    """Configuration for a single conversation state."""
-    
-    id: str = Field(..., description="Unique state identifier")
-    name: str = Field(..., description="Human-readable state name")
-    prompt: Optional[str] = Field(None, description="Optional state-specific prompt")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "id": "greeting",
-                "name": "Greeting",
-                "prompt": "Greet the customer warmly"
-            }
-        }
+class LeadTransferField(BaseModel):
+    """Кастомное поле для передачи в CRM."""
+    name: str = Field(..., max_length=50)
+    instruction: str = Field(..., max_length=1000)
 
 
-class TransitionConfig(BaseModel):
-    """Configuration for state transition."""
-    
-    from_state: str = Field(..., description="Source state ID")
-    to_state: str = Field(..., description="Target state ID")
-    condition: Optional[str] = Field(None, description="Optional transition condition")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "from_state": "greeting",
-                "to_state": "service_inquiry",
-                "condition": "user_responded"
-            }
-        }
+class ClosingMessage(BaseModel):
+    """Формирователь закрывающего сообщения."""
+    type: Literal["llm_prompt", "static_template"] = Field(default="llm_prompt")
+    prompt: Optional[str] = Field(None, max_length=300)
+    template: Optional[str] = None
 
-
-class FlowConfig(BaseModel):
-    """
-    Flow configuration for conversation structure.
-    
-    Supports:
-    - Linear: Sequential states (greeting -> inquiry -> booking -> confirmation)
-    - Graph: Complex state machine with conditional transitions
-    
-    States can be:
-    - Simple strings (for linear flows): ["greeting", "inquiry", "booking"]
-    - StateConfig objects (for complex flows with prompts)
-    """
-    
-    type: FlowType = Field(
-        ...,
-        description="Flow type: 'linear' for sequential, 'graph' for state machine"
-    )
-    
-    states: List[Union[str, StateConfig]] = Field(
-        ...,
-        description="List of conversation states (strings or StateConfig objects)",
-        min_items=1
-    )
-    
-    transitions: List[TransitionConfig] = Field(
-        default_factory=list,
-        description="State transitions (required for 'graph' type)"
-    )
-    
-    @model_validator(mode='after')
-    def validate_flow_consistency(self):
-        """Validate flow configuration consistency."""
-        if not self.states:
-            raise ValueError("At least one state is required")
-        
-        # For graph type, validate transitions reference valid states
-        if self.type == FlowType.GRAPH and self.transitions:
-            # Extract state IDs (handle both string and StateConfig)
-            state_ids = set()
-            for state in self.states:
-                if isinstance(state, str):
-                    state_ids.add(state)
-                else:
-                    state_ids.add(state.id)
-            
-            for transition in self.transitions:
-                if transition.from_state not in state_ids:
-                    raise ValueError(f"Transition references unknown state: {transition.from_state}")
-                if transition.to_state not in state_ids:
-                    raise ValueError(f"Transition references unknown state: {transition.to_state}")
-        
-        return self
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "type": "linear",
-                "states": [
-                    {"id": "greeting", "name": "Greeting"},
-                    {"id": "inquiry", "name": "Service Inquiry"},
-                    {"id": "booking", "name": "Booking"},
-                    {"id": "confirmation", "name": "Confirmation"}
-                ],
-                "transitions": []
-            }
-        }
-
-
-# =============================================================================
-# Agent Configuration
-# =============================================================================
 
 class AgentConfig(BaseModel):
     """
-    Agent configuration for handoff and CRM integration.
+    TAB 3: Агенты
     
-    Defines:
-    - When to transfer to human agent
-    - How to map conversation data to CRM fields
+    Настройки лид трансфера и закрывающего сообщения.
     """
     
-    handoff_criteria: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Criteria for transferring to human agent"
+    lead_transfer_fields: List[LeadTransferField] = Field(
+        default_factory=list,
+        description="Кастомные поля для передачи в CRM"
     )
     
-    crm_field_mapping: Dict[str, str] = Field(
-        default_factory=dict,
-        description="Mapping from conversation fields to CRM fields"
+    closing_message: ClosingMessage = Field(
+        default_factory=ClosingMessage,
+        description="Формирователь закрывающего сообщения"
     )
     
     class Config:
         json_schema_extra = {
             "example": {
-                "handoff_criteria": {
-                    "complex_request": True,
-                    "customer_angry": True,
-                    "technical_issue": True
-                },
-                "crm_field_mapping": {
-                    "name": "client_name",
-                    "phone": "client_phone",
-                    "email": "client_email",
-                    "service": "requested_service"
+                "lead_transfer_fields": [
+                    {
+                        "name": "funnelID",
+                        "instruction": "укажи ID воронки, 38 - если клиент был на мероприятии..."
+                    }
+                ],
+                "closing_message": {
+                    "type": "llm_prompt",
+                    "prompt": "Сформируй дружелюбное закрывающее сообщение на основе контекста разговора"
                 }
             }
         }
 
 
 # =============================================================================
-# Tool Configuration
+# TAB 4: Tools Configuration
 # =============================================================================
+
+class TransferRule(BaseModel):
+    """Правило перевода звонка."""
+    condition: str = Field(..., description="Условие для перевода")
+    context_rules: str = Field(..., description="Правила для проговаривания контекста")
+    phone_or_sip: str = Field(..., description="Номер телефона или SIP-адрес")
+
 
 class ToolConfig(BaseModel):
     """
-    Configuration for a function calling tool.
-    
-    Tools allow the bot to perform actions like:
-    - Check calendar availability
-    - Book appointments
-    - Transfer calls
-    - Send SMS/Email
+    Конфигурация инструмента.
     """
     
-    name: str = Field(
-        ...,
-        description="Tool name (e.g., 'calendar', 'transfer', 'send_sms')",
-        min_length=1
-    )
+    name: Literal[
+        "transfer_call",
+        "end_call",
+        "detect_language",
+        "skip_turn",
+        "transfer_to_agent",
+        "dtmf_tone"
+    ] = Field(..., description="Название инструмента")
+    
+    enabled: bool = Field(default=False, description="Активен ли инструмент")
     
     config: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Tool-specific configuration"
-    )
-    
-    enabled: bool = Field(
-        default=True,
-        description="Whether this tool is enabled"
+        description="Конфигурация инструмента"
     )
     
     class Config:
         json_schema_extra = {
             "example": {
-                "name": "calendar",
+                "name": "transfer_call",
+                "enabled": True,
                 "config": {
-                    "api_url": "https://api.example.com/calendar",
-                    "api_key": "secret_key"
-                },
-                "enabled": True
+                    "description": "",
+                    "rules": [
+                        {
+                            "condition": "Клиент просит перевести на менеджера",
+                            "context_rules": "Иван, 31 год, ищет двухкомнатную квартиру",
+                            "phone_or_sip": "+79991234567"
+                        }
+                    ]
+                }
             }
         }
 
 
 # =============================================================================
-# Voice Configuration
+# TAB 5: Knowledge Base Configuration
 # =============================================================================
 
-class VoiceConfig(BaseModel):
+class KnowledgeBaseConfig(BaseModel):
     """
-    Voice pipeline configuration.
+    TAB 5: База знаний
     
-    Defines:
-    - TTS provider and voice
-    - STT provider and language
+    Привязка документов из базы знаний.
     """
     
-    tts_provider: TTSProvider = Field(
-        ...,
-        description="Text-to-Speech provider"
-    )
-    
-    tts_voice_id: str = Field(
-        ...,
-        description="Voice ID from the TTS provider",
-        min_length=1
-    )
-    
-    stt_provider: STTProvider = Field(
-        ...,
-        description="Speech-to-Text provider"
-    )
-    
-    stt_language: str = Field(
-        default="ru",
-        description="STT language code (e.g., 'ru', 'en', 'es')"
+    document_ids: List[str] = Field(
+        default_factory=list,
+        description="ID документов из базы знаний"
     )
     
     class Config:
         json_schema_extra = {
             "example": {
-                "tts_provider": "cartesia",
-                "tts_voice_id": "064b17af-d36b-4bfb-b003-be07dba1b649",
-                "stt_provider": "deepgram",
-                "stt_language": "ru"
+                "document_ids": [
+                    "550e8400-e29b-41d4-a716-446655440000",
+                    "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+                ]
             }
         }
 
 
 # =============================================================================
-# LLM Configuration
-# =============================================================================
-
-class LLMConfig(BaseModel):
-    """
-    LLM configuration.
-    
-    Defines:
-    - Provider (Groq, OpenAI, Ollama, etc.)
-    - Model name
-    - Generation parameters
-    """
-    
-    provider: LLMProvider = Field(
-        ...,
-        description="LLM provider"
-    )
-    
-    model: str = Field(
-        ...,
-        description="Model name (e.g., 'llama-3.1-70b-versatile', 'gpt-4')",
-        min_length=1
-    )
-    
-    temperature: float = Field(
-        default=0.7,
-        description="Sampling temperature (0.0-2.0)",
-        ge=0.0,
-        le=2.0
-    )
-    
-    max_tokens: Optional[int] = Field(
-        None,
-        description="Maximum tokens to generate",
-        gt=0
-    )
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "provider": "groq",
-                "model": "llama-3.1-70b-versatile",
-                "temperature": 0.7,
-                "max_tokens": 1024
-            }
-        }
-
-
-# =============================================================================
-# Complete Skillbase Configuration
+# Complete Skillbase Configuration (Sasha AI spec)
 # =============================================================================
 
 class SkillbaseConfig(BaseModel):
     """
-    Complete Skillbase configuration schema.
+    Полная конфигурация Skillbase по спецификации Sasha AI.
     
-    This is the root schema that validates the entire JSONB config field.
-    All sub-configurations are validated according to their respective schemas.
-    
-    **INTELLECTUAL HONESTY NOTE:**
-    This schema is based on the design document specification.
-    If any fields are missing or incorrect, they should be added/corrected
-    based on actual requirements.
+    Структура из 5 табов:
+    1. Context - роль, стиль, правила, факты, голос
+    2. Flow - приветствие, план разговора
+    3. Agent - лид трансфер, закрывающее сообщение
+    4. Tools - инструменты (перевод, завершение звонка и т.д.)
+    5. Knowledge Base - привязка документов
     """
     
     context: ContextConfig = Field(
         ...,
-        description="Bot personality and knowledge context"
+        description="TAB 1: Контекст (роль, стиль, правила, факты, голос)"
     )
     
     flow: FlowConfig = Field(
         ...,
-        description="Conversation flow structure"
+        description="TAB 2: План разговора (приветствие, план)"
     )
     
     agent: AgentConfig = Field(
         default_factory=AgentConfig,
-        description="Agent handoff and CRM configuration"
+        description="TAB 3: Агенты (лид трансфер, закрывающее сообщение)"
     )
     
     tools: List[ToolConfig] = Field(
         default_factory=list,
-        description="Available function calling tools"
+        description="TAB 4: Инструменты"
     )
     
-    voice: VoiceConfig = Field(
-        ...,
-        description="Voice pipeline configuration"
-    )
-    
-    llm: LLMConfig = Field(
-        ...,
-        description="LLM configuration"
+    knowledge_base: KnowledgeBaseConfig = Field(
+        default_factory=KnowledgeBaseConfig,
+        description="TAB 5: База знаний"
     )
     
     @field_validator('tools')
     @classmethod
     def validate_unique_tool_names(cls, v):
-        """Ensure tool names are unique."""
+        """Проверка уникальности имен инструментов."""
         if v:
             names = [tool.name for tool in v]
             if len(names) != len(set(names)):
-                raise ValueError("Tool names must be unique")
+                raise ValueError("Имена инструментов должны быть уникальными")
         return v
     
     class Config:
         json_schema_extra = {
             "example": {
                 "context": {
-                    "role": "Receptionist at beauty salon 'Glamour'",
-                    "style": "Friendly and professional",
-                    "safety_rules": ["Never give medical advice"],
-                    "facts": ["We work 9am-9pm", "We accept cards and cash"]
+                    "role": "Тебя зовут Зиля, ты живой сотрудник...",
+                    "style": "Говори максимально кратко и по делу...",
+                    "rules": ["Отвечай опираясь на последнюю речь клиента"],
+                    "facts": ["Мы работаем с 9:00 до 21:00"],
+                    "lead_criteria": [],
+                    "language": "ru",
+                    "voice_id": "sasha_v1",
+                    "max_call_duration": 600
                 },
                 "flow": {
-                    "type": "linear",
-                    "states": [
-                        {"id": "greeting", "name": "Greeting"},
-                        {"id": "inquiry", "name": "Service Inquiry"},
-                        {"id": "booking", "name": "Booking"}
-                    ],
-                    "transitions": []
+                    "greeting_phrases": ["Алло...", "Добрый день..."],
+                    "conversation_plan": [
+                        "Узнай как к собеседнику обращаться",
+                        "Подтверди что это владелец квартиры"
+                    ]
                 },
                 "agent": {
-                    "handoff_criteria": {"complex_request": True},
-                    "crm_field_mapping": {"name": "client_name"}
+                    "lead_transfer_fields": [],
+                    "closing_message": {
+                        "type": "llm_prompt",
+                        "prompt": "Сформируй дружелюбное закрывающее сообщение"
+                    }
                 },
                 "tools": [
                     {
-                        "name": "calendar",
-                        "config": {"api_url": "https://api.example.com"},
-                        "enabled": True
+                        "name": "transfer_call",
+                        "enabled": True,
+                        "config": {"description": "", "rules": []}
+                    },
+                    {
+                        "name": "end_call",
+                        "enabled": True,
+                        "config": {}
                     }
                 ],
-                "voice": {
-                    "tts_provider": "cartesia",
-                    "tts_voice_id": "064b17af-d36b-4bfb-b003-be07dba1b649",
-                    "stt_provider": "deepgram",
-                    "stt_language": "ru"
-                },
-                "llm": {
-                    "provider": "groq",
-                    "model": "llama-3.1-70b-versatile",
-                    "temperature": 0.7
+                "knowledge_base": {
+                    "document_ids": []
                 }
             }
         }
+
+
+# =============================================================================
+# API Request/Response Schemas
+# =============================================================================
+
+class SkillbaseCreate(BaseModel):
+    """Схема создания Skillbase."""
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    company_id: UUID
+    knowledge_base_id: Optional[UUID] = None
+    config: Optional[SkillbaseConfig] = None
+
+
+class SkillbaseUpdate(BaseModel):
+    """Схема обновления Skillbase."""
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    company_id: Optional[UUID] = None
+    knowledge_base_id: Optional[UUID] = None
+    config: Optional[SkillbaseConfig] = None
+
+
+class SkillbaseResponse(BaseModel):
+    """Схема ответа Skillbase."""
+    id: UUID
+    name: str
+    description: Optional[str]
+    company_id: UUID
+    knowledge_base_id: Optional[UUID]
+    config: Optional[SkillbaseConfig]
+    created_at: Any
+    updated_at: Any
+    
+    class Config:
+        from_attributes = True
+
+
+class SkillbaseListResponse(BaseModel):
+    """Список Skillbases."""
+    items: List[SkillbaseResponse]
+    total: int
+
+
+# =============================================================================
+# Voice API Schemas
+# =============================================================================
+
+class VoiceInfo(BaseModel):
+    """Информация о голосе."""
+    id: str
+    name: str
+    gender: Literal["male", "female"]
+    style: str
+
+
+class TTSPreviewRequest(BaseModel):
+    """Запрос на TTS preview."""
+    text: str = Field(..., max_length=500)
+    voice_id: str
+
+
+class TestCallRequest(BaseModel):
+    """Запрос на тестовый звонок."""
+    phone_number: str = Field(..., pattern=r"^\+?[1-9]\d{1,14}$")
+

@@ -251,3 +251,146 @@ async def delete_skillbase(skillbase_id: UUID):
         
         await db.delete(skillbase)
         await db.commit()
+
+
+# =============================================================================
+# Дополнительные эндпоинты для Skillbase Configurator
+# =============================================================================
+
+@router.get("/voices/list")
+async def list_voices():
+    """
+    Получить список доступных голосов.
+    
+    Возвращает список голосов с информацией:
+    - id: идентификатор голоса
+    - name: название голоса
+    - gender: пол (male/female)
+    - style: стиль голоса
+    """
+    from src.schemas.skillbase_schemas import AVAILABLE_VOICES
+    return {"voices": AVAILABLE_VOICES}
+
+
+@router.post("/tts-preview")
+async def tts_preview(text: str = Field(..., max_length=500), voice_id: str = "sasha_v1"):
+    """
+    Генерация TTS preview для фразы.
+    
+    Параметры:
+    - text: текст для озвучки (до 500 символов)
+    - voice_id: ID голоса
+    
+    Возвращает:
+    - audio_url: URL аудиофайла (временный)
+    
+    TODO: Интеграция с Cartesia/ElevenLabs
+    """
+    # Заглушка пока нет интеграции с TTS
+    return {
+        "audio_url": f"https://example.com/tts/{voice_id}/{hash(text)}.mp3",
+        "duration": len(text) * 0.1,  # примерная длительность
+        "voice_id": voice_id,
+        "text": text
+    }
+
+
+@router.post("/{skillbase_id}/test-call")
+async def test_call(
+    skillbase_id: UUID,
+    phone_number: str = Field(..., pattern=r"^\+?[1-9]\d{1,14}$")
+):
+    """
+    Тестовый звонок с использованием Skillbase.
+    
+    Параметры:
+    - skillbase_id: ID Skillbase
+    - phone_number: номер телефона в международном формате
+    
+    Возвращает:
+    - call_id: ID созданного звонка
+    - status: статус звонка
+    
+    TODO: Интеграция с LiveKit + телефонией
+    """
+    async with get_async_db() as db:
+        skillbase = await db.get(Skillbase, skillbase_id)
+        
+        if not skillbase:
+            raise HTTPException(status_code=404, detail="Skillbase not found")
+        
+        if not skillbase.is_active:
+            raise HTTPException(status_code=400, detail="Skillbase is not active")
+        
+        # Заглушка пока нет интеграции с телефонией
+        return {
+            "call_id": "test-call-" + str(skillbase_id)[:8],
+            "status": "initiated",
+            "phone_number": phone_number,
+            "skillbase_id": str(skillbase_id),
+            "message": "Test call initiated (stub implementation)"
+        }
+
+
+@router.get("/{skillbase_id}/config")
+async def get_skillbase_config(skillbase_id: UUID):
+    """
+    Получить только конфигурацию Skillbase.
+    
+    Удобно для загрузки конфигурации в UI конфигуратор.
+    """
+    async with get_async_db() as db:
+        skillbase = await db.get(Skillbase, skillbase_id)
+        
+        if not skillbase:
+            raise HTTPException(status_code=404, detail="Skillbase not found")
+        
+        return {
+            "id": skillbase.id,
+            "name": skillbase.name,
+            "config": skillbase.config,
+            "version": skillbase.version,
+            "updated_at": skillbase.updated_at
+        }
+
+
+@router.put("/{skillbase_id}/config")
+async def update_skillbase_config(
+    skillbase_id: UUID,
+    config: Dict[str, Any]
+):
+    """
+    Обновить только конфигурацию Skillbase.
+    
+    Валидирует конфигурацию и инкрементирует version.
+    """
+    async with get_async_db() as db:
+        service = SkillbaseService(db)
+        
+        try:
+            skillbase = await service.update(
+                skillbase_id=skillbase_id,
+                config=config
+            )
+            
+            return {
+                "id": skillbase.id,
+                "name": skillbase.name,
+                "config": skillbase.config,
+                "version": skillbase.version,
+                "updated_at": skillbase.updated_at
+            }
+        
+        except SkillbaseValidationError as e:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": str(e),
+                    "errors": e.errors if hasattr(e, "errors") else [],
+                }
+            )
+        
+        except ValueError as e:
+            if "not found" in str(e).lower():
+                raise HTTPException(status_code=404, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e))
