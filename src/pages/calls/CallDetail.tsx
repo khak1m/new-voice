@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { callsClient } from '@new-voice/api-client'
-import type { TranscriptMessage } from '@new-voice/types'
+import type { CallTranscript, TranscriptMessage } from '@new-voice/types'
 import { CallDetailHeader } from './components/CallDetailHeader'
 import { CallInfoBlocks } from './components/CallInfoBlocks'
 import { CallDetailTabs } from './components/CallDetailTabs'
@@ -32,7 +32,10 @@ export function CallDetail() {
     queryFn: () => callsClient.getTranscript(id!),
     enabled: !!id && !!call,
     staleTime: 60000, // Cache for 1 minute
-    select: (response) => response.data as TranscriptMessage[],
+    select: (response) => {
+      const data = response.data as CallTranscript | TranscriptMessage[] | undefined
+      return Array.isArray(data) ? data : data?.messages ?? []
+    },
   })
 
   const handleReport = () => {

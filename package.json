@@ -2,6 +2,7 @@
   "name": "new-voice-frontend-v2",
   "version": "2.0.0",
   "private": true,
+  "type": "module",
   "description": "NEW-VOICE 2.0 Frontend - Modular Architecture",
   "workspaces": [
     "packages/*",
@@ -13,7 +14,11 @@
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
-    "type-check": "pnpm -r type-check"
+    "type-check": "pnpm -r type-check",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
@@ -28,20 +33,27 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "@typescript-eslint/eslint-plugin": "^6.19.0",
     "@typescript-eslint/parser": "^6.19.0",
     "@vitejs/plugin-react": "^4.2.1",
+    "@vitest/ui": "^4.0.18",
     "autoprefixer": "^10.4.17",
     "eslint": "^8.56.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
+    "jsdom": "^27.4.0",
+    "msw": "^2.12.7",
     "postcss": "^8.4.33",
     "prettier": "^3.2.4",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3",
-    "vite": "^5.0.11"
+    "vite": "^5.0.11",
+    "vitest": "^4.0.18"
   },
   "engines": {
     "node": ">=18.0.0",
