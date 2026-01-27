@@ -7,6 +7,7 @@ export function MainLayout() {
     { name: 'Dashboard', href: '/dashboard' },
     { name: 'Skillbases', href: '/skillbases' },
     { name: 'Campaigns', href: '/campaigns' },
+    { name: 'Calls', href: '/calls' },
   ]
 
   return (

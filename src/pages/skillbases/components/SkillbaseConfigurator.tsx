@@ -116,13 +116,18 @@ export function SkillbaseConfigurator({
         </div>
       )}
 
-      <Card>
+        <Card>
         <div className="p-6">
           {ActiveComponent && activeTabData && config && (
             <ActiveComponent
               config={config[activeTabData.configKey] as any}
               isEditing={isEditing}
               onChange={(value: any) => handleConfigChange(activeTabData.configKey, value)}
+              // Pass voice settings to FlowTab for TTS preview
+              {...(activeTabData.id === 'flow' && {
+                voiceId: config.context?.voice_id,
+                language: config.context?.language || 'ru',
+              })}
             />
           )}
           {!config && (

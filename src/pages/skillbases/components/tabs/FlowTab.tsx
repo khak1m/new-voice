@@ -1,13 +1,16 @@
 import type { FlowConfig } from '@new-voice/types'
 import { Textarea } from '@new-voice/ui'
+import { TTSPreviewButton } from '../../../../components/tts/TTSPreviewButton'
 
 interface FlowTabProps {
   config?: FlowConfig
   isEditing?: boolean
   onChange?: (config: FlowConfig) => void
+  voiceId?: string
+  language?: string
 }
 
-export function FlowTab({ config, isEditing = false, onChange }: FlowTabProps) {
+export function FlowTab({ config, isEditing = false, onChange, voiceId, language = 'ru' }: FlowTabProps) {
   const handleArrayChange = (
     field: 'greeting_phrases' | 'conversation_plan',
     index: number,
@@ -52,23 +55,36 @@ export function FlowTab({ config, isEditing = false, onChange }: FlowTabProps) {
         </p>
         <div className="space-y-2">
           {(config.greeting_phrases || []).map((phrase, index) => (
-            <div key={index} className="flex gap-2">
-              <Textarea
-                value={phrase}
-                onChange={(e) => handleArrayChange('greeting_phrases', index, e.target.value)}
-                placeholder="Enter a greeting phrase"
-                rows={2}
-                disabled={!isEditing}
-              />
-              {isEditing && (
-                <button
-                  type="button"
-                  onClick={() => handleRemoveArrayItem('greeting_phrases', index)}
-                  className="px-3 py-2 text-red-600 hover:text-red-700 self-start"
-                >
-                  Remove
-                </button>
-              )}
+            <div key={index} className="flex gap-2 items-start">
+              <div className="flex-1">
+                <Textarea
+                  value={phrase}
+                  onChange={(e) => handleArrayChange('greeting_phrases', index, e.target.value)}
+                  placeholder="Enter a greeting phrase"
+                  rows={2}
+                  disabled={!isEditing}
+                />
+              </div>
+              <div className="flex gap-1 pt-1">
+                <TTSPreviewButton
+                  text={phrase}
+                  voiceId={voiceId}
+                  language={language}
+                  size="sm"
+                />
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveArrayItem('greeting_phrases', index)}
+                    className="w-8 h-8 flex items-center justify-center text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors"
+                    title="Remove"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
           ))}
           {isEditing && (
