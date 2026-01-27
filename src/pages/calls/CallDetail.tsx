@@ -124,8 +124,8 @@ export function CallDetail() {
       {/* Header */}
       <CallDetailHeader call={call} onReport={handleReport} />
 
-      {/* Content */}
-      <div className="p-6 space-y-6">
+      {/* Content - responsive padding */}
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Info Blocks */}
         <CallInfoBlocks call={call} />
 

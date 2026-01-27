@@ -90,11 +90,11 @@ export function CallDetailTabs({
           {transcript.map((message, index) => (
             <div
               key={message.id || index}
-              className={`flex gap-3 ${message.role === 'assistant' ? 'flex-row' : 'flex-row-reverse'}`}
+              className={`flex gap-2 sm:gap-3 ${message.role === 'assistant' ? 'flex-row' : 'flex-row-reverse'}`}
             >
               {/* Avatar */}
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                   message.role === 'assistant'
                     ? 'bg-indigo-100 text-indigo-600'
                     : 'bg-gray-100 text-gray-600'
@@ -107,15 +107,15 @@ export function CallDetailTabs({
                 )}
               </div>
 
-              {/* Message bubble */}
+              {/* Message bubble - wider on mobile */}
               <div
-                className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                className={`max-w-[85%] sm:max-w-[70%] rounded-lg px-3 sm:px-4 py-2 ${
                   message.role === 'assistant'
                     ? 'bg-indigo-50 text-gray-900'
                     : 'bg-gray-100 text-gray-900'
                 }`}
               >
-                <p className="text-sm">{message.content}</p>
+                <p className="text-sm break-words">{message.content}</p>
                 <span className="text-xs text-gray-400 mt-1 block">
                   {formatTimestamp(message.timestamp)}
                 </span>
@@ -156,10 +156,10 @@ export function CallDetailTabs({
 
     return (
       <div className="bg-gray-50 rounded-lg p-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <span className="text-sm text-gray-500">Session ID</span>
-            <p className="text-sm font-mono text-gray-900 mt-1">{session.session_id}</p>
+            <p className="text-sm font-mono text-gray-900 mt-1 break-all">{session.session_id}</p>
           </div>
           <div>
             <span className="text-sm text-gray-500">Provider</span>
@@ -321,14 +321,16 @@ export function CallDetailTabs({
 
   return (
     <div className="bg-white rounded-lg border border-gray-200">
-      {/* Tab Navigation */}
-      <div className="border-b border-gray-200 overflow-x-auto">
-        <nav className="flex -mb-px min-w-max">
+      {/* Tab Navigation - scrollable on mobile */}
+      <div className="border-b border-gray-200 overflow-x-auto scrollbar-hide">
+        <nav className="flex -mb-px min-w-max" role="tablist">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`whitespace-nowrap border-b-2 py-4 px-6 text-sm font-medium transition-colors ${
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              className={`whitespace-nowrap border-b-2 py-3 sm:py-4 px-4 sm:px-6 text-xs sm:text-sm font-medium transition-colors ${
                 activeTab === tab.id
                   ? 'border-indigo-500 text-indigo-600'
                   : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
@@ -340,8 +342,8 @@ export function CallDetailTabs({
         </nav>
       </div>
 
-      {/* Tab Content */}
-      <div className="p-6">
+      {/* Tab Content - responsive padding */}
+      <div className="p-4 sm:p-6">
         {renderTabContent()}
       </div>
     </div>

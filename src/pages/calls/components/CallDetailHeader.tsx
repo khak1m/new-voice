@@ -46,7 +46,7 @@ export function CallDetailHeader({ call, onReport }: CallDetailHeaderProps) {
   }
 
   return (
-    <div className="bg-white border-b border-gray-200 px-6 py-4">
+    <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
       {/* Top row with back button and actions */}
       <div className="flex items-center justify-between mb-4">
         <button
@@ -56,7 +56,7 @@ export function CallDetailHeader({ call, onReport }: CallDetailHeaderProps) {
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
-          <span className="text-sm font-medium">Back to list</span>
+          <span className="text-sm font-medium hidden sm:inline">Back to list</span>
         </button>
 
         <button
@@ -66,19 +66,22 @@ export function CallDetailHeader({ call, onReport }: CallDetailHeaderProps) {
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
-          Report issue
+          <span className="hidden sm:inline">Report issue</span>
         </button>
       </div>
 
-      {/* Call title and badges */}
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-2xl font-bold text-gray-900">
+      {/* Call title and badges - stacks on mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          {/* Title and badges - wrap on mobile */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-all">
               Call {call.phone_number}
             </h1>
-            {getDirectionBadge(call.direction)}
-            {getStatusBadge(call.status)}
+            <div className="flex items-center gap-2">
+              {getDirectionBadge(call.direction)}
+              {getStatusBadge(call.status)}
+            </div>
           </div>
           
           <p className="text-sm text-gray-500">
@@ -93,17 +96,18 @@ export function CallDetailHeader({ call, onReport }: CallDetailHeaderProps) {
           </p>
         </div>
 
-        {/* Recording button */}
+        {/* Recording button - full width on mobile */}
         <Button
           onClick={() => setShowPlayer(!showPlayer)}
           variant={showPlayer ? 'secondary' : 'default'}
           disabled={!call.recording_url}
-          className="flex items-center gap-2"
+          className="flex items-center justify-center gap-2 w-full sm:w-auto flex-shrink-0"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
           </svg>
-          {showPlayer ? 'Hide recording' : 'Listen to recording'}
+          <span className="sm:hidden">{showPlayer ? 'Hide' : 'Recording'}</span>
+          <span className="hidden sm:inline">{showPlayer ? 'Hide recording' : 'Listen to recording'}</span>
         </Button>
       </div>
 
