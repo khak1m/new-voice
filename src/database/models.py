@@ -217,8 +217,12 @@ class Call(Base):
     __tablename__ = "calls"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    bot_id = Column(UUID(as_uuid=True), ForeignKey("bots.id", ondelete="SET NULL"))
+    bot_id = Column(UUID(as_uuid=True), ForeignKey("bots.id", ondelete="SET NULL"))  # Legacy, для обратной совместимости
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"))
+    
+    # Enterprise Platform fields
+    skillbase_id = Column(UUID(as_uuid=True), ForeignKey("skillbases.id", ondelete="SET NULL"))
+    campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id", ondelete="SET NULL"))
     
     external_call_id = Column(String(255))
     livekit_room_id = Column(String(255))
@@ -246,6 +250,8 @@ class Call(Base):
     # Relationships
     bot = relationship("Bot", back_populates="calls")
     company = relationship("Company", back_populates="calls")
+    skillbase = relationship("Skillbase", backref="calls")
+    campaign = relationship("Campaign", backref="calls")
     messages = relationship("Message", back_populates="call", cascade="all, delete-orphan")
     lead = relationship("Lead", back_populates="call", uselist=False)
     
@@ -290,8 +296,12 @@ class Lead(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     call_id = Column(UUID(as_uuid=True), ForeignKey("calls.id", ondelete="SET NULL"))
-    bot_id = Column(UUID(as_uuid=True), ForeignKey("bots.id", ondelete="SET NULL"))
+    bot_id = Column(UUID(as_uuid=True), ForeignKey("bots.id", ondelete="SET NULL"))  # Legacy
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"))
+    
+    # Enterprise Platform fields
+    skillbase_id = Column(UUID(as_uuid=True), ForeignKey("skillbases.id", ondelete="SET NULL"))
+    campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id", ondelete="SET NULL"))
     
     name = Column(String(255))
     phone = Column(String(50))
@@ -312,6 +322,8 @@ class Lead(Base):
     call = relationship("Call", back_populates="lead")
     bot = relationship("Bot", back_populates="leads")
     company = relationship("Company", back_populates="leads")
+    skillbase = relationship("Skillbase", backref="leads")
+    campaign = relationship("Campaign", backref="leads")
     
     def __repr__(self):
         return f"<Lead {self.name or self.phone}>"

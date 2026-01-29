@@ -41,6 +41,8 @@ class CallResponse(BaseModel):
     id: UUID
     bot_id: Optional[UUID]
     company_id: Optional[UUID]
+    skillbase_id: Optional[UUID]
+    campaign_id: Optional[UUID]
     direction: str
     caller_number: Optional[str]
     callee_number: Optional[str]
@@ -112,6 +114,8 @@ class CallDetailResponse(BaseModel):
 async def list_calls(
     company_id: Optional[UUID] = None,
     bot_id: Optional[UUID] = None,
+    skillbase_id: Optional[UUID] = None,
+    campaign_id: Optional[UUID] = None,
     outcome: Optional[str] = None,
     status: Optional[str] = None,
     skip: int = Query(default=0, ge=0),
@@ -125,6 +129,10 @@ async def list_calls(
             query = query.where(Call.company_id == company_id)
         if bot_id:
             query = query.where(Call.bot_id == bot_id)
+        if skillbase_id:
+            query = query.where(Call.skillbase_id == skillbase_id)
+        if campaign_id:
+            query = query.where(Call.campaign_id == campaign_id)
         if outcome:
             query = query.where(Call.outcome == outcome)
         if status:
@@ -136,6 +144,10 @@ async def list_calls(
             count_query = count_query.where(Call.company_id == company_id)
         if bot_id:
             count_query = count_query.where(Call.bot_id == bot_id)
+        if skillbase_id:
+            count_query = count_query.where(Call.skillbase_id == skillbase_id)
+        if campaign_id:
+            count_query = count_query.where(Call.campaign_id == campaign_id)
 
         count_result = await db.execute(count_query)
         total = len(count_result.scalars().all())
@@ -197,6 +209,8 @@ async def get_call_messages(call_id: UUID):
 async def get_calls_stats(
     company_id: Optional[UUID] = None,
     bot_id: Optional[UUID] = None,
+    skillbase_id: Optional[UUID] = None,
+    campaign_id: Optional[UUID] = None,
 ):
     """Получить статистику по звонкам."""
     async with get_async_db() as db:
@@ -206,6 +220,10 @@ async def get_calls_stats(
             query = query.where(Call.company_id == company_id)
         if bot_id:
             query = query.where(Call.bot_id == bot_id)
+        if skillbase_id:
+            query = query.where(Call.skillbase_id == skillbase_id)
+        if campaign_id:
+            query = query.where(Call.campaign_id == campaign_id)
 
         result = await db.execute(query)
         calls = result.scalars().all()

@@ -34,6 +34,8 @@ class LeadResponse(BaseModel):
     call_id: Optional[UUID]
     bot_id: Optional[UUID]
     company_id: Optional[UUID]
+    skillbase_id: Optional[UUID]
+    campaign_id: Optional[UUID]
     name: Optional[str]
     phone: Optional[str]
     email: Optional[str]
@@ -68,6 +70,8 @@ class LeadUpdate(BaseModel):
 async def list_leads(
     company_id: Optional[UUID] = None,
     bot_id: Optional[UUID] = None,
+    skillbase_id: Optional[UUID] = None,
+    campaign_id: Optional[UUID] = None,
     status: Optional[str] = None,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
@@ -80,6 +84,10 @@ async def list_leads(
             query = query.where(Lead.company_id == company_id)
         if bot_id:
             query = query.where(Lead.bot_id == bot_id)
+        if skillbase_id:
+            query = query.where(Lead.skillbase_id == skillbase_id)
+        if campaign_id:
+            query = query.where(Lead.campaign_id == campaign_id)
         if status:
             query = query.where(Lead.status == status)
         
@@ -89,6 +97,10 @@ async def list_leads(
             count_query = count_query.where(Lead.company_id == company_id)
         if bot_id:
             count_query = count_query.where(Lead.bot_id == bot_id)
+        if skillbase_id:
+            count_query = count_query.where(Lead.skillbase_id == skillbase_id)
+        if campaign_id:
+            count_query = count_query.where(Lead.campaign_id == campaign_id)
         if status:
             count_query = count_query.where(Lead.status == status)
         
@@ -143,6 +155,8 @@ async def update_lead(lead_id: UUID, data: LeadUpdate):
 async def get_leads_stats(
     company_id: Optional[UUID] = None,
     bot_id: Optional[UUID] = None,
+    skillbase_id: Optional[UUID] = None,
+    campaign_id: Optional[UUID] = None,
 ):
     """Получить статистику по лидам."""
     async with get_async_db() as db:
@@ -152,6 +166,10 @@ async def get_leads_stats(
             query = query.where(Lead.company_id == company_id)
         if bot_id:
             query = query.where(Lead.bot_id == bot_id)
+        if skillbase_id:
+            query = query.where(Lead.skillbase_id == skillbase_id)
+        if campaign_id:
+            query = query.where(Lead.campaign_id == campaign_id)
         
         result = await db.execute(query)
         leads = result.scalars().all()
@@ -174,6 +192,8 @@ async def get_leads_stats(
 async def export_leads_csv(
     company_id: Optional[UUID] = None,
     bot_id: Optional[UUID] = None,
+    skillbase_id: Optional[UUID] = None,
+    campaign_id: Optional[UUID] = None,
     status: Optional[str] = None,
 ):
     """Экспорт лидов в CSV."""
@@ -187,6 +207,10 @@ async def export_leads_csv(
             query = query.where(Lead.company_id == company_id)
         if bot_id:
             query = query.where(Lead.bot_id == bot_id)
+        if skillbase_id:
+            query = query.where(Lead.skillbase_id == skillbase_id)
+        if campaign_id:
+            query = query.where(Lead.campaign_id == campaign_id)
         if status:
             query = query.where(Lead.status == status)
         
