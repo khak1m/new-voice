@@ -1,15 +1,17 @@
 export interface Lead {
   id: string
-  campaign_id: string
-  company_id: string
-  phone_number: string
-  first_name?: string
-  last_name?: string
+  call_id?: string
+  bot_id?: string
+  company_id?: string
+  name?: string
+  phone?: string
   email?: string
+  data: Record<string, unknown>
   status: LeadStatus
-  custom_data?: Record<string, unknown>
+  notes?: string
+  webhook_sent: boolean
   created_at: string
   updated_at: string
 }
 
-export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'converted' | 'rejected'
+export type LeadStatus = 'new' | 'contacted' | 'converted' | 'rejected'

@@ -8,6 +8,8 @@ import { CampaignsList } from './pages/campaigns/CampaignsList'
 import { CampaignDetail } from './pages/campaigns/CampaignDetail'
 import { CallsList } from './pages/calls/CallsList'
 import { CallDetail } from './pages/calls/CallDetail'
+import { LeadsList } from './pages/leads/LeadsList'
+import { LeadDetail } from './pages/leads/LeadDetail'
 
 function App() {
   return (
@@ -24,6 +26,8 @@ function App() {
             <Route path="campaigns/:id" element={<CampaignDetail />} />
             <Route path="calls" element={<CallsList />} />
             <Route path="calls/:id" element={<CallDetail />} />
+            <Route path="leads" element={<LeadsList />} />
+            <Route path="leads/:id" element={<LeadDetail />} />
           </Route>
         </Routes>
       </BrowserRouter>

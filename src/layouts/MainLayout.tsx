@@ -8,6 +8,7 @@ export function MainLayout() {
     { name: 'Skillbases', href: '/skillbases' },
     { name: 'Campaigns', href: '/campaigns' },
     { name: 'Calls', href: '/calls' },
+    { name: 'Leads', href: '/leads' },
   ]
 
   return (
