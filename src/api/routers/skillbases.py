@@ -13,7 +13,7 @@ from uuid import UUID
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from pydantic import BaseModel, Field, validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -49,6 +49,11 @@ class SkillbaseUpdate(BaseModel):
     knowledge_base_id: Optional[UUID] = None
     is_active: Optional[bool] = None
     is_published: Optional[bool] = None
+
+
+class TestCallRequest(BaseModel):
+    """Схема запроса тестового звонка."""
+    phone_number: str = Field(..., pattern=r"^\+?[1-9]\d{1,14}$", description="Номер телефона в международном формате")
 
 
 class SkillbaseResponse(BaseModel):
@@ -298,35 +303,35 @@ async def tts_preview(text: str = Query(..., max_length=500), voice_id: str = Qu
 @router.post("/{skillbase_id}/test-call")
 async def test_call(
     skillbase_id: UUID,
-    phone_number: str = Field(..., pattern=r"^\+?[1-9]\d{1,14}$")
+    request: TestCallRequest
 ):
     """
     Тестовый звонок с использованием Skillbase.
-    
+
     Параметры:
     - skillbase_id: ID Skillbase
-    - phone_number: номер телефона в международном формате
-    
+    - request.phone_number: номер телефона в международном формате
+
     Возвращает:
     - call_id: ID созданного звонка
     - status: статус звонка
-    
+
     TODO: Интеграция с LiveKit + телефонией
     """
     async with get_async_db() as db:
         skillbase = await db.get(Skillbase, skillbase_id)
-        
+
         if not skillbase:
             raise HTTPException(status_code=404, detail="Skillbase not found")
-        
+
         if not skillbase.is_active:
             raise HTTPException(status_code=400, detail="Skillbase is not active")
-        
+
         # Заглушка пока нет интеграции с телефонией
         return {
             "call_id": "test-call-" + str(skillbase_id)[:8],
             "status": "initiated",
-            "phone_number": phone_number,
+            "phone_number": request.phone_number,
             "skillbase_id": str(skillbase_id),
             "message": "Test call initiated (stub implementation)"
         }
