@@ -9,6 +9,7 @@ export function MainLayout() {
     { name: 'Campaigns', href: '/campaigns' },
     { name: 'Calls', href: '/calls' },
     { name: 'Leads', href: '/leads' },
+    { name: 'Knowledge Bases', href: '/knowledge-bases' },
   ]
 
   return (

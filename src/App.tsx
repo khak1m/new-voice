@@ -10,6 +10,8 @@ import { CallsList } from './pages/calls/CallsList'
 import { CallDetail } from './pages/calls/CallDetail'
 import { LeadsList } from './pages/leads/LeadsList'
 import { LeadDetail } from './pages/leads/LeadDetail'
+import { KnowledgeBasesList } from './pages/knowledge-bases/KnowledgeBasesList'
+import { KnowledgeBaseDetail } from './pages/knowledge-bases/KnowledgeBaseDetail'
 
 function App() {
   return (
@@ -28,6 +30,8 @@ function App() {
             <Route path="calls/:id" element={<CallDetail />} />
             <Route path="leads" element={<LeadsList />} />
             <Route path="leads/:id" element={<LeadDetail />} />
+            <Route path="knowledge-bases" element={<KnowledgeBasesList />} />
+            <Route path="knowledge-bases/:id" element={<KnowledgeBaseDetail />} />
           </Route>
         </Routes>
       </BrowserRouter>
