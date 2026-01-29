@@ -13,7 +13,7 @@ from uuid import UUID
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, Field, validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -273,7 +273,7 @@ async def list_voices():
 
 
 @router.post("/tts-preview")
-async def tts_preview(text: str = Field(..., max_length=500), voice_id: str = "sasha_v1"):
+async def tts_preview(text: str = Query(..., max_length=500), voice_id: str = Query(default="sasha_v1")):
     """
     Генерация TTS preview для фразы.
     
