@@ -22,6 +22,12 @@ export interface Call {
   completion_reason?: string
   skillbase_name?: string
   campaign_name?: string
+  // Detailed call data (populated when available from API)
+  agreements?: CallAgreement[]
+  session?: CallSession
+  contact_info?: ContactInfo
+  transfer_status?: TransferStatus
+  lead_transfer?: LeadTransfer
 }
 
 export type CallStatus = 'pending' | 'in_progress' | 'completed' | 'failed' | 'no_answer' | 'busy'

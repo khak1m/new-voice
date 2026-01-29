@@ -5,6 +5,7 @@ import { skillbasesClient } from '@new-voice/api-client'
 import { Button } from '@new-voice/ui'
 import { FormInput } from '../../../components/FormInput'
 import { createSkillbaseSchema, type CreateSkillbaseInput } from '../../../schemas/skillbase-schemas'
+import { useCompanyId } from '../../../contexts/AuthContext'
 import toast from 'react-hot-toast'
 
 interface SkillbaseCreateModalProps {
@@ -14,6 +15,7 @@ interface SkillbaseCreateModalProps {
 
 export function SkillbaseCreateModal({ isOpen, onClose }: SkillbaseCreateModalProps) {
   const queryClient = useQueryClient()
+  const companyId = useCompanyId()
 
   const {
     register,
@@ -25,7 +27,7 @@ export function SkillbaseCreateModal({ isOpen, onClose }: SkillbaseCreateModalPr
     defaultValues: {
       name: '',
       description: '',
-      company_id: 'default-company', // TODO: Get from auth context
+      company_id: companyId,
     },
   })
 

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { callsClient } from '@new-voice/api-client'
@@ -5,11 +6,12 @@ import type { CallTranscript, TranscriptMessage } from '@new-voice/types'
 import { CallDetailHeader } from './components/CallDetailHeader'
 import { CallInfoBlocks } from './components/CallInfoBlocks'
 import { CallDetailTabs } from './components/CallDetailTabs'
-import { toast } from 'sonner'
+import { ReportModal } from './components/ReportModal'
 
 export function CallDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false)
 
   // Fetch call data
   const { 
@@ -39,8 +41,7 @@ export function CallDetail() {
   })
 
   const handleReport = () => {
-    toast.info('Report functionality will be implemented soon')
-    // TODO: Implement report modal
+    setIsReportModalOpen(true)
   }
 
   // Loading state
@@ -136,14 +137,20 @@ export function CallDetail() {
         <CallDetailTabs
           call={call}
           transcript={transcript || []}
-          // TODO: Add other data when API is available
-          agreements={[]}
-          session={undefined}
-          contactInfo={undefined}
-          transferStatus={undefined}
-          leadTransfer={undefined}
+          agreements={call.agreements || []}
+          session={call.session}
+          contactInfo={call.contact_info}
+          transferStatus={call.transfer_status}
+          leadTransfer={call.lead_transfer}
         />
       </div>
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        call={call}
+      />
     </div>
   )
 }
