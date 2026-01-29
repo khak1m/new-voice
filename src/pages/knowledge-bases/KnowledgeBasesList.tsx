@@ -15,10 +15,10 @@ export function KnowledgeBasesList() {
 
   const { data: knowledgeBases, isLoading, error } = useQuery({
     queryKey: ['knowledge-bases'],
-    queryFn: () =>
-      apiClient.knowledgeBases.list({
-        company_id: 'default-company', // TODO: Get from auth context
-      }),
+    queryFn: async () => {
+      const response = await apiClient.knowledgeBases.list()
+      return response.data
+    },
   })
 
   const createMutation = useMutation({

@@ -14,20 +14,19 @@ export function LeadsList() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['leads', { status: statusFilter, skip: page * limit, limit }],
-    queryFn: () =>
-      apiClient.leads.list({
-        company_id: 'default-company', // TODO: Get from auth context
+    queryFn: async () => {
+      const response = await apiClient.leads.list({
         status: statusFilter === 'all' ? undefined : statusFilter,
         skip: page * limit,
         limit,
-      }),
+      })
+      return response.data
+    },
   })
 
   const handleExport = async () => {
     try {
-      const response = await apiClient.leads.export({
-        company_id: 'default-company',
-      })
+      const response = await apiClient.leads.export()
       
       // Create download link
       const url = window.URL.createObjectURL(new Blob([response.data]))

@@ -3,7 +3,6 @@ import { z } from 'zod'
 export const knowledgeBaseCreateSchema = z.object({
   name: z.string().min(1, 'Название обязательно').max(255),
   description: z.string().optional(),
-  company_id: z.string(),
 })
 
 export const documentCreateSchema = z.object({
