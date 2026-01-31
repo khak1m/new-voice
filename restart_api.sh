@@ -10,7 +10,8 @@ echo "🔄 Активация виртуального окружения..."
 source venv/bin/activate
 
 echo "📦 Обновление зависимостей (если нужно)..."
-pip install -r requirements.txt --quiet
+# API-only requirements avoid LiveKit Agents resolver conflicts on servers.
+pip install -r requirements-api.txt --quiet
 
 echo "🛑 Остановка старого процесса uvicorn..."
 pkill -f "uvicorn src.api.main:app" || true
