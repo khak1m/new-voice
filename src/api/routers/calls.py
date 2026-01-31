@@ -7,6 +7,7 @@ API для просмотра звонков.
 - GET /api/calls/{id}/messages — сообщения звонка
 - GET /api/calls/{id}/transcript — транскрипт звонка
 - GET /api/calls/{id}/recording — запись звонка
+- POST /api/calls/{id}/rate — оценка звонка (нужно фронту)
 """
 
 import os
@@ -103,6 +104,10 @@ class CallDetailResponse(BaseModel):
 
     call: CallResponse
     messages: list[MessageResponse]
+
+
+class CallRateRequest(BaseModel):
+    rating: int
 
 
 # =============================================================================
@@ -314,6 +319,29 @@ async def get_call_transcript(call_id: UUID):
             )
 
         return TranscriptResponse(messages=transcript_messages)
+
+
+@router.post("/{call_id}/rate")
+async def rate_call(call_id: UUID, data: CallRateRequest):
+    """Сохранить оценку звонка.
+
+    Фронт отправляет число (например 1..5). Мы сохраняем это в outcome_data.
+    """
+    if data.rating < 1 or data.rating > 5:
+        raise HTTPException(status_code=400, detail="rating must be between 1 and 5")
+
+    async with get_async_db() as db:
+        call = await db.get(Call, call_id)
+        if not call:
+            raise HTTPException(status_code=404, detail="Call not found")
+
+        outcome_data = call.outcome_data or {}
+        outcome_data["rating"] = data.rating
+        call.outcome_data = outcome_data
+
+        await db.commit()
+
+        return {"call_id": str(call_id), "rating": data.rating}
 
 
 @router.get("/{call_id}/recording")

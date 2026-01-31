@@ -28,36 +28,40 @@ logger = logging.getLogger(__name__)
 
 class CampaignServiceError(Exception):
     """Base exception for CampaignService errors."""
+
     pass
 
 
 class CampaignNotFoundError(CampaignServiceError):
     """Campaign not found."""
+
     pass
 
 
 class CampaignValidationError(CampaignServiceError):
     """Campaign validation failed."""
+
     pass
 
 
 class CallListValidationError(CampaignServiceError):
     """Call list validation failed."""
+
     pass
 
 
 class CampaignService:
     """
     Manages outbound calling campaigns.
-    
+
     Handles campaign lifecycle, call list uploads, and task queue management
     with rate limiting and scheduling.
     """
-    
+
     def __init__(self, db_session: AsyncSession):
         """
         Initialize CampaignService.
-        
+
         Args:
             db_session: Async database session
         """
@@ -65,7 +69,7 @@ class CampaignService:
         self._rate_limit_cache: Dict[UUID, Dict[str, Any]] = {}
         self._cache_lock = asyncio.Lock()
         logger.info("CampaignService initialized")
-    
+
     async def create(
         self,
         company_id: UUID,
@@ -80,11 +84,11 @@ class CampaignService:
         max_concurrent_calls: int = 5,
         calls_per_minute: int = 10,
         max_retries: int = 3,
-        retry_delay_minutes: int = 30
+        retry_delay_minutes: int = 30,
     ) -> Campaign:
         """
         Create a new campaign.
-        
+
         Args:
             company_id: Company ID
             skillbase_id: Skillbase ID to use for calls
@@ -99,10 +103,10 @@ class CampaignService:
             calls_per_minute: Rate limit (calls per minute)
             max_retries: Max retry attempts per task
             retry_delay_minutes: Delay between retries
-        
+
         Returns:
             Created Campaign object
-        
+
         Raises:
             CampaignValidationError: If validation fails
         """
@@ -114,13 +118,12 @@ class CampaignService:
             company = company_result.scalar_one_or_none()
             if not company:
                 raise CampaignValidationError(f"Company {company_id} not found")
-            
+
             # Validate skillbase exists and belongs to company
             skillbase_result = await self.db_session.execute(
                 select(Skillbase).where(
                     and_(
-                        Skillbase.id == skillbase_id,
-                        Skillbase.company_id == company_id
+                        Skillbase.id == skillbase_id, Skillbase.company_id == company_id
                     )
                 )
             )
@@ -129,14 +132,14 @@ class CampaignService:
                 raise CampaignValidationError(
                     f"Skillbase {skillbase_id} not found or doesn't belong to company"
                 )
-            
+
             # Validate time format
             try:
                 datetime.strptime(daily_start_time, "%H:%M")
                 datetime.strptime(daily_end_time, "%H:%M")
             except ValueError as e:
                 raise CampaignValidationError(f"Invalid time format: {e}")
-            
+
             # Create campaign
             campaign = Campaign(
                 company_id=company_id,
@@ -155,25 +158,25 @@ class CampaignService:
                 retry_delay_minutes=retry_delay_minutes,
                 total_tasks=0,
                 completed_tasks=0,
-                failed_tasks=0
+                failed_tasks=0,
             )
-            
+
             self.db_session.add(campaign)
             await self.db_session.commit()
             await self.db_session.refresh(campaign)
-            
+
             logger.info(
                 f"Created campaign {campaign.id}",
                 extra={
                     "campaign_id": str(campaign.id),
                     "company_id": str(company_id),
                     "skillbase_id": str(skillbase_id),
-                    "name": name
-                }
+                    "name": name,
+                },
             )
-            
+
             return campaign
-            
+
         except CampaignValidationError:
             raise
         except Exception as e:
@@ -181,24 +184,21 @@ class CampaignService:
             logger.error(
                 f"Failed to create campaign: {e}",
                 extra={"company_id": str(company_id)},
-                exc_info=True
+                exc_info=True,
             )
             raise CampaignServiceError(f"Failed to create campaign: {e}")
-    
+
     async def upload_call_list(
-        self,
-        campaign_id: UUID,
-        file_content: bytes,
-        filename: str
+        self, campaign_id: UUID, file_content: bytes, filename: str
     ) -> Dict[str, Any]:
         """
         Upload and parse call list from CSV or Excel file.
-        
+
         Args:
             campaign_id: Campaign ID
             file_content: File content as bytes
             filename: Original filename
-        
+
         Returns:
             Dictionary with upload results:
             {
@@ -206,7 +206,7 @@ class CampaignService:
                 "created": int,
                 "errors": List[str]
             }
-        
+
         Raises:
             CampaignNotFoundError: If campaign not found
             CallListValidationError: If file validation fails
@@ -216,55 +216,55 @@ class CampaignService:
             campaign = await self.get_by_id(campaign_id)
             if not campaign:
                 raise CampaignNotFoundError(f"Campaign {campaign_id} not found")
-            
+
             # Parse file
             file_io = BytesIO(file_content)
-            
-            if filename.endswith('.csv'):
+
+            if filename.endswith(".csv"):
                 df = pd.read_csv(file_io)
-            elif filename.endswith(('.xlsx', '.xls')):
+            elif filename.endswith((".xlsx", ".xls")):
                 df = pd.read_excel(file_io)
             else:
                 raise CallListValidationError(
                     "Unsupported file format. Use CSV or Excel (.xlsx, .xls)"
                 )
-            
+
             # Validate required columns
-            required_columns = ['phone_number']
+            required_columns = ["phone_number"]
             missing_columns = [col for col in required_columns if col not in df.columns]
             if missing_columns:
                 raise CallListValidationError(
                     f"Missing required columns: {', '.join(missing_columns)}"
                 )
-            
+
             # Process rows
             created_count = 0
             errors = []
-            
+
             for idx, row in df.iterrows():
                 try:
-                    phone_number = str(row['phone_number']).strip()
-                    
+                    phone_number = str(row["phone_number"]).strip()
+
                     # Basic phone validation
-                    if not phone_number or phone_number == 'nan':
+                    if not phone_number or phone_number == "nan":
                         errors.append(f"Row {idx + 2}: Empty phone number")
                         continue
-                    
+
                     # Extract optional fields
-                    contact_name = row.get('name', row.get('contact_name', None))
-                    if contact_name and str(contact_name) != 'nan':
+                    contact_name = row.get("name", row.get("contact_name", None))
+                    if contact_name and str(contact_name) != "nan":
                         contact_name = str(contact_name).strip()
                     else:
                         contact_name = None
-                    
+
                     # Extract additional data
                     contact_data = {}
                     for col in df.columns:
-                        if col not in ['phone_number', 'name', 'contact_name']:
+                        if col not in ["phone_number", "name", "contact_name"]:
                             value = row[col]
                             if pd.notna(value):
                                 contact_data[col] = str(value)
-                    
+
                     # Create CallTask
                     call_task = CallTask(
                         campaign_id=campaign_id,
@@ -273,36 +273,32 @@ class CampaignService:
                         contact_data=contact_data,
                         status="pending",
                         attempt_count=0,
-                        priority=0
+                        priority=0,
                     )
-                    
+
                     self.db_session.add(call_task)
                     created_count += 1
-                    
+
                 except Exception as e:
                     errors.append(f"Row {idx + 2}: {str(e)}")
-            
+
             # Update campaign stats
             campaign.total_tasks += created_count
-            
+
             await self.db_session.commit()
-            
+
             logger.info(
                 f"Uploaded call list for campaign {campaign_id}",
                 extra={
                     "campaign_id": str(campaign_id),
                     "total_rows": len(df),
                     "created": created_count,
-                    "errors": len(errors)
-                }
+                    "errors": len(errors),
+                },
             )
-            
-            return {
-                "total": len(df),
-                "created": created_count,
-                "errors": errors
-            }
-            
+
+            return {"total": len(df), "created": created_count, "errors": errors}
+
         except (CampaignNotFoundError, CallListValidationError):
             raise
         except Exception as e:
@@ -310,20 +306,20 @@ class CampaignService:
             logger.error(
                 f"Failed to upload call list: {e}",
                 extra={"campaign_id": str(campaign_id)},
-                exc_info=True
+                exc_info=True,
             )
             raise CampaignServiceError(f"Failed to upload call list: {e}")
-    
+
     async def start(self, campaign_id: UUID) -> Campaign:
         """
         Start campaign processing.
-        
+
         Args:
             campaign_id: Campaign ID
-        
+
         Returns:
             Updated Campaign object
-        
+
         Raises:
             CampaignNotFoundError: If campaign not found
             CampaignValidationError: If campaign cannot be started
@@ -332,27 +328,27 @@ class CampaignService:
             campaign = await self.get_by_id(campaign_id)
             if not campaign:
                 raise CampaignNotFoundError(f"Campaign {campaign_id} not found")
-            
+
             # Validate campaign can be started
             if campaign.status == "running":
                 raise CampaignValidationError("Campaign is already running")
-            
+
             if campaign.total_tasks == 0:
                 raise CampaignValidationError("Campaign has no tasks")
-            
+
             # Update status
             campaign.status = "running"
-            
+
             await self.db_session.commit()
             await self.db_session.refresh(campaign)
-            
+
             logger.info(
                 f"Started campaign {campaign_id}",
-                extra={"campaign_id": str(campaign_id)}
+                extra={"campaign_id": str(campaign_id)},
             )
-            
+
             return campaign
-            
+
         except (CampaignNotFoundError, CampaignValidationError):
             raise
         except Exception as e:
@@ -360,20 +356,20 @@ class CampaignService:
             logger.error(
                 f"Failed to start campaign: {e}",
                 extra={"campaign_id": str(campaign_id)},
-                exc_info=True
+                exc_info=True,
             )
             raise CampaignServiceError(f"Failed to start campaign: {e}")
-    
+
     async def pause(self, campaign_id: UUID) -> Campaign:
         """
         Pause campaign processing.
-        
+
         Args:
             campaign_id: Campaign ID
-        
+
         Returns:
             Updated Campaign object
-        
+
         Raises:
             CampaignNotFoundError: If campaign not found
         """
@@ -381,19 +377,19 @@ class CampaignService:
             campaign = await self.get_by_id(campaign_id)
             if not campaign:
                 raise CampaignNotFoundError(f"Campaign {campaign_id} not found")
-            
+
             campaign.status = "paused"
-            
+
             await self.db_session.commit()
             await self.db_session.refresh(campaign)
-            
+
             logger.info(
                 f"Paused campaign {campaign_id}",
-                extra={"campaign_id": str(campaign_id)}
+                extra={"campaign_id": str(campaign_id)},
             )
-            
+
             return campaign
-            
+
         except CampaignNotFoundError:
             raise
         except Exception as e:
@@ -401,49 +397,161 @@ class CampaignService:
             logger.error(
                 f"Failed to pause campaign: {e}",
                 extra={"campaign_id": str(campaign_id)},
-                exc_info=True
+                exc_info=True,
             )
             raise CampaignServiceError(f"Failed to pause campaign: {e}")
-    
+
+    async def resume(self, campaign_id: UUID) -> Campaign:
+        """Resume campaign processing (paused -> running)."""
+        try:
+            campaign = await self.get_by_id(campaign_id)
+            if not campaign:
+                raise CampaignNotFoundError(f"Campaign {campaign_id} not found")
+
+            if campaign.status == "running":
+                raise CampaignValidationError("Campaign is already running")
+
+            if campaign.status not in ("paused", "draft", "scheduled"):
+                raise CampaignValidationError(
+                    f"Campaign cannot be resumed from status '{campaign.status}'"
+                )
+
+            if campaign.total_tasks == 0:
+                raise CampaignValidationError("Campaign has no tasks")
+
+            campaign.status = "running"
+
+            await self.db_session.commit()
+            await self.db_session.refresh(campaign)
+
+            logger.info(
+                f"Resumed campaign {campaign_id}",
+                extra={"campaign_id": str(campaign_id)},
+            )
+
+            return campaign
+
+        except (CampaignNotFoundError, CampaignValidationError):
+            raise
+        except Exception as e:
+            await self.db_session.rollback()
+            logger.error(
+                f"Failed to resume campaign: {e}",
+                extra={"campaign_id": str(campaign_id)},
+                exc_info=True,
+            )
+            raise CampaignServiceError(f"Failed to resume campaign: {e}")
+
+    async def stop(self, campaign_id: UUID) -> Campaign:
+        """Stop campaign processing (running/paused -> completed)."""
+        try:
+            campaign = await self.get_by_id(campaign_id)
+            if not campaign:
+                raise CampaignNotFoundError(f"Campaign {campaign_id} not found")
+
+            # Idempotent: if already completed/failed, just return it
+            if campaign.status in ("completed", "failed"):
+                return campaign
+
+            campaign.status = "completed"
+
+            await self.db_session.commit()
+            await self.db_session.refresh(campaign)
+
+            logger.info(
+                f"Stopped campaign {campaign_id}",
+                extra={"campaign_id": str(campaign_id)},
+            )
+
+            return campaign
+
+        except CampaignNotFoundError:
+            raise
+        except Exception as e:
+            await self.db_session.rollback()
+            logger.error(
+                f"Failed to stop campaign: {e}",
+                extra={"campaign_id": str(campaign_id)},
+                exc_info=True,
+            )
+            raise CampaignServiceError(f"Failed to stop campaign: {e}")
+
+    async def get_stats(self, campaign_id: UUID) -> Dict[str, Any]:
+        """Return campaign statistics (computed + denormalized)."""
+        try:
+            campaign = await self.get_by_id(campaign_id)
+            if not campaign:
+                raise CampaignNotFoundError(f"Campaign {campaign_id} not found")
+
+            # Compute task status distribution (more accurate than denormalized fields)
+            status_rows = await self.db_session.execute(
+                select(CallTask.status, func.count())
+                .where(CallTask.campaign_id == campaign_id)
+                .group_by(CallTask.status)
+            )
+            tasks_by_status = {row[0]: int(row[1]) for row in status_rows.all()}
+
+            total_tasks = int(campaign.total_tasks or 0)
+            completed_tasks = int(campaign.completed_tasks or 0)
+            failed_tasks = int(campaign.failed_tasks or 0)
+            success_rate = (completed_tasks / total_tasks) if total_tasks > 0 else 0.0
+
+            return {
+                "campaign_id": str(campaign.id),
+                "status": campaign.status,
+                "total_tasks": total_tasks,
+                "completed_tasks": completed_tasks,
+                "failed_tasks": failed_tasks,
+                "success_rate": round(success_rate * 100, 2),
+                "tasks_by_status": tasks_by_status,
+            }
+
+        except CampaignNotFoundError:
+            raise
+        except Exception as e:
+            logger.error(
+                f"Failed to get campaign stats: {e}",
+                extra={"campaign_id": str(campaign_id)},
+                exc_info=True,
+            )
+            raise CampaignServiceError(f"Failed to get campaign stats: {e}")
+
     async def get_by_id(
-        self,
-        campaign_id: UUID,
-        eager_load: bool = False
+        self, campaign_id: UUID, eager_load: bool = False
     ) -> Optional[Campaign]:
         """
         Get campaign by ID.
-        
+
         Args:
             campaign_id: Campaign ID
             eager_load: Whether to eager load relationships
-        
+
         Returns:
             Campaign object or None
         """
         try:
             query = select(Campaign).where(Campaign.id == campaign_id)
-            
+
             if eager_load:
                 query = query.options(
-                    selectinload(Campaign.skillbase),
-                    selectinload(Campaign.company)
+                    selectinload(Campaign.skillbase), selectinload(Campaign.company)
                 )
-            
+
             result = await self.db_session.execute(query)
             return result.scalar_one_or_none()
-            
+
         except Exception as e:
             logger.error(
                 f"Failed to get campaign: {e}",
                 extra={"campaign_id": str(campaign_id)},
-                exc_info=True
+                exc_info=True,
             )
             return None
-    
+
     async def get_active_campaigns(self) -> List[Campaign]:
         """
         Get all active (running) campaigns.
-        
+
         Returns:
             List of Campaign objects
         """
@@ -454,24 +562,18 @@ class CampaignService:
                 .options(selectinload(Campaign.skillbase))
             )
             return list(result.scalars().all())
-            
+
         except Exception as e:
-            logger.error(
-                f"Failed to get active campaigns: {e}",
-                exc_info=True
-            )
+            logger.error(f"Failed to get active campaigns: {e}", exc_info=True)
             return []
-    
-    async def get_next_task(
-        self,
-        campaign_id: UUID
-    ) -> Optional[CallTask]:
+
+    async def get_next_task(self, campaign_id: UUID) -> Optional[CallTask]:
         """
         Get next pending task respecting rate limits and scheduling.
-        
+
         Args:
             campaign_id: Campaign ID
-        
+
         Returns:
             CallTask object or None if no tasks available
         """
@@ -479,18 +581,18 @@ class CampaignService:
             campaign = await self.get_by_id(campaign_id)
             if not campaign:
                 return None
-            
+
             # Check if within scheduling window
             if not await self._is_within_schedule(campaign):
                 return None
-            
+
             # Check rate limits
             if not await self._check_rate_limits(campaign):
                 return None
-            
+
             # Get next pending or retry task
             now = datetime.utcnow()
-            
+
             result = await self.db_session.execute(
                 select(CallTask)
                 .where(
@@ -500,89 +602,89 @@ class CampaignService:
                             CallTask.status == "pending",
                             and_(
                                 CallTask.status == "retry",
-                                CallTask.next_attempt_at <= now
-                            )
-                        )
+                                CallTask.next_attempt_at <= now,
+                            ),
+                        ),
                     )
                 )
                 .order_by(CallTask.priority.desc(), CallTask.created_at)
                 .limit(1)
             )
-            
+
             task = result.scalar_one_or_none()
-            
+
             if task:
                 # Update rate limit cache
                 await self._update_rate_limit_cache(campaign_id)
-            
+
             return task
-            
+
         except Exception as e:
             logger.error(
                 f"Failed to get next task: {e}",
                 extra={"campaign_id": str(campaign_id)},
-                exc_info=True
+                exc_info=True,
             )
             return None
-    
+
     async def _is_within_schedule(self, campaign: Campaign) -> bool:
         """Check if current time is within campaign schedule."""
         now = datetime.utcnow()
-        
+
         # Check campaign start/end time
         if campaign.start_time and now < campaign.start_time:
             return False
-        
+
         if campaign.end_time and now > campaign.end_time:
             return False
-        
+
         # Check daily window (simplified - assumes UTC)
         current_time = now.strftime("%H:%M")
-        
+
         if campaign.daily_start_time and current_time < campaign.daily_start_time:
             return False
-        
+
         if campaign.daily_end_time and current_time > campaign.daily_end_time:
             return False
-        
+
         return True
-    
+
     async def _check_rate_limits(self, campaign: Campaign) -> bool:
         """Check if campaign is within rate limits."""
         async with self._cache_lock:
             cache = self._rate_limit_cache.get(campaign.id, {})
-            
+
             now = datetime.utcnow()
-            
+
             # Check concurrent calls
             concurrent = cache.get("concurrent", 0)
             if concurrent >= campaign.max_concurrent_calls:
                 return False
-            
+
             # Check calls per minute
             minute_key = now.strftime("%Y-%m-%d %H:%M")
             minute_calls = cache.get(f"minute_{minute_key}", 0)
             if minute_calls >= campaign.calls_per_minute:
                 return False
-            
+
             return True
-    
+
     async def _update_rate_limit_cache(self, campaign_id: UUID) -> None:
         """Update rate limit cache after task assignment."""
         async with self._cache_lock:
             if campaign_id not in self._rate_limit_cache:
                 self._rate_limit_cache[campaign_id] = {}
-            
+
             cache = self._rate_limit_cache[campaign_id]
-            
+
             # Increment concurrent
             cache["concurrent"] = cache.get("concurrent", 0) + 1
-            
+
             # Increment minute counter
             now = datetime.utcnow()
             minute_key = now.strftime("%Y-%m-%d %H:%M")
             cache[f"minute_{minute_key}"] = cache.get(f"minute_{minute_key}", 0) + 1
-    
+
     async def mark_in_progress(self, task_id: UUID) -> CallTask:
         """Mark task as in progress."""
         try:
@@ -590,19 +692,19 @@ class CampaignService:
                 select(CallTask).where(CallTask.id == task_id)
             )
             task = result.scalar_one_or_none()
-            
+
             if not task:
                 raise CampaignServiceError(f"Task {task_id} not found")
-            
+
             task.status = "in_progress"
             task.attempt_count += 1
             task.last_attempt_at = datetime.utcnow()
-            
+
             await self.db_session.commit()
             await self.db_session.refresh(task)
-            
+
             return task
-            
+
         except Exception as e:
             try:
                 await self.db_session.rollback()
@@ -610,12 +712,9 @@ class CampaignService:
                 pass  # Ignore rollback errors (session may be in invalid state)
             logger.error(f"Failed to mark task in progress: {e}", exc_info=True)
             raise
-    
+
     async def mark_completed(
-        self,
-        task_id: UUID,
-        call_id: Optional[UUID],
-        outcome: str
+        self, task_id: UUID, call_id: Optional[UUID], outcome: str
     ) -> CallTask:
         """Mark task as completed."""
         try:
@@ -623,28 +722,28 @@ class CampaignService:
                 select(CallTask).where(CallTask.id == task_id)
             )
             task = result.scalar_one_or_none()
-            
+
             if not task:
                 raise CampaignServiceError(f"Task {task_id} not found")
-            
+
             task.status = "completed"
             if call_id:
                 task.call_id = call_id
             task.outcome = outcome
-            
+
             # Update campaign stats
             campaign = await self.get_by_id(task.campaign_id)
             if campaign:
                 campaign.completed_tasks += 1
-            
+
             await self.db_session.commit()
             await self.db_session.refresh(task)
-            
+
             # Decrement concurrent counter
             await self._decrement_concurrent(task.campaign_id)
-            
+
             return task
-            
+
         except Exception as e:
             try:
                 await self.db_session.rollback()
@@ -652,12 +751,8 @@ class CampaignService:
                 pass  # Ignore rollback errors (session may be in invalid state)
             logger.error(f"Failed to mark task completed: {e}", exc_info=True)
             raise
-    
-    async def mark_failed(
-        self,
-        task_id: UUID,
-        error_message: str
-    ) -> CallTask:
+
+    async def mark_failed(self, task_id: UUID, error_message: str) -> CallTask:
         """Mark task as failed or retry."""
         try:
             # Eager load campaign relationship to avoid lazy loading in async context
@@ -667,13 +762,13 @@ class CampaignService:
                 .options(selectinload(CallTask.campaign))
             )
             task = result.scalar_one_or_none()
-            
+
             if not task:
                 raise CampaignServiceError(f"Task {task_id} not found")
-            
+
             # Campaign is already loaded via eager loading
             campaign = task.campaign
-            
+
             if task.attempt_count < campaign.max_retries:
                 # Schedule retry
                 task.status = "retry"
@@ -685,17 +780,17 @@ class CampaignService:
                 task.status = "failed"
                 if campaign:
                     campaign.failed_tasks += 1
-            
+
             task.error_message = error_message
-            
+
             await self.db_session.commit()
             await self.db_session.refresh(task)
-            
+
             # Decrement concurrent counter
             await self._decrement_concurrent(task.campaign_id)
-            
+
             return task
-            
+
         except Exception as e:
             try:
                 await self.db_session.rollback()
@@ -703,7 +798,7 @@ class CampaignService:
                 pass  # Ignore rollback errors (session may be in invalid state)
             logger.error(f"Failed to mark task failed: {e}", exc_info=True)
             raise
-    
+
     async def _decrement_concurrent(self, campaign_id: UUID) -> None:
         """Decrement concurrent call counter."""
         async with self._cache_lock:

@@ -10,6 +10,9 @@ API для управления Campaigns (Task 18).
 - POST /api/campaigns/{id}/call-list — загрузить список контактов
 - POST /api/campaigns/{id}/start — запустить Campaign
 - POST /api/campaigns/{id}/pause — поставить Campaign на паузу
+- POST /api/campaigns/{id}/resume — продолжить Campaign
+- POST /api/campaigns/{id}/stop — остановить Campaign
+- GET /api/campaigns/{id}/stats — статистика Campaign
 """
 
 from uuid import UUID
@@ -23,7 +26,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.connection import get_async_db
 from src.database.models import Campaign
-from src.services.campaign_service import CampaignService, CampaignValidationError, CampaignNotFoundError
+from src.services.campaign_service import (
+    CampaignService,
+    CampaignValidationError,
+    CampaignNotFoundError,
+)
 
 router = APIRouter()
 
@@ -32,20 +39,23 @@ router = APIRouter()
 # Pydantic схемы
 # =============================================================================
 
+
 class CampaignCreate(BaseModel):
     """Схема создания Campaign."""
-    company_id: UUID
+
+    # Frontend может прислать UUID или slug (например "default-company")
+    company_id: str
     skillbase_id: UUID
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
-    
+
     # Scheduling
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     daily_start_time: str = Field(default="09:00", pattern=r"^\d{2}:\d{2}$")
     daily_end_time: str = Field(default="18:00", pattern=r"^\d{2}:\d{2}$")
     timezone: str = Field(default="UTC")
-    
+
     # Rate limiting
     max_concurrent_calls: int = Field(default=5, ge=1, le=100)
     calls_per_minute: int = Field(default=10, ge=1, le=100)
@@ -55,6 +65,7 @@ class CampaignCreate(BaseModel):
 
 class CampaignUpdate(BaseModel):
     """Схема обновления Campaign."""
+
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     start_time: Optional[datetime] = None
@@ -70,54 +81,70 @@ class CampaignUpdate(BaseModel):
 
 class CampaignResponse(BaseModel):
     """Схема ответа Campaign."""
+
     id: UUID
     company_id: UUID
     skillbase_id: UUID
     name: str
     description: Optional[str]
     status: str
-    
+
     # Scheduling
     start_time: Optional[datetime]
     end_time: Optional[datetime]
     daily_start_time: str
     daily_end_time: str
     timezone: str
-    
+
     # Rate limiting
     max_concurrent_calls: int
     calls_per_minute: int
     max_retries: int
     retry_delay_minutes: int
-    
+
     # Stats
     total_tasks: int
     completed_tasks: int
     failed_tasks: int
-    
+
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
 
 
 class CampaignListResponse(BaseModel):
     """Список Campaigns."""
+
     items: List[CampaignResponse]
     total: int
 
 
 class CallListUploadResponse(BaseModel):
     """Результат загрузки списка контактов."""
+
     total: int = Field(..., description="Всего строк в файле")
     created: int = Field(..., description="Успешно созданных задач")
     errors: List[str] = Field(default_factory=list, description="Список ошибок")
 
 
+class CampaignStatsResponse(BaseModel):
+    """Статистика кампании (для фронтенда)."""
+
+    campaign_id: str
+    status: str
+    total_tasks: int
+    completed_tasks: int
+    failed_tasks: int
+    success_rate: float
+    tasks_by_status: dict
+
+
 # =============================================================================
 # Эндпоинты
 # =============================================================================
+
 
 @router.get("", response_model=CampaignListResponse)
 async def list_campaigns(
@@ -129,7 +156,7 @@ async def list_campaigns(
 ):
     """
     Получить список Campaigns.
-    
+
     Фильтры:
     - company_id: фильтр по компании
     - skillbase_id: фильтр по Skillbase
@@ -139,19 +166,19 @@ async def list_campaigns(
     """
     async with get_async_db() as db:
         query = select(Campaign)
-        
+
         if company_id:
             query = query.where(Campaign.company_id == company_id)
         if skillbase_id:
             query = query.where(Campaign.skillbase_id == skillbase_id)
         if status:
             query = query.where(Campaign.status == status)
-        
+
         query = query.offset(skip).limit(limit).order_by(Campaign.created_at.desc())
-        
+
         result = await db.execute(query)
         campaigns = list(result.scalars().all())
-        
+
         # Считаем общее количество
         count_query = select(Campaign)
         if company_id:
@@ -160,10 +187,10 @@ async def list_campaigns(
             count_query = count_query.where(Campaign.skillbase_id == skillbase_id)
         if status:
             count_query = count_query.where(Campaign.status == status)
-        
+
         count_result = await db.execute(count_query)
         total = len(list(count_result.scalars().all()))
-        
+
         return CampaignListResponse(
             items=[CampaignResponse.model_validate(c) for c in campaigns],
             total=total,
@@ -174,15 +201,24 @@ async def list_campaigns(
 async def create_campaign(data: CampaignCreate):
     """
     Создать новую Campaign.
-    
+
     Валидирует company_id, skillbase_id и временные окна.
     """
     async with get_async_db() as db:
         service = CampaignService(db)
-        
+
+        from src.services.company_utils import resolve_company
+
+        try:
+            company = await resolve_company(
+                db, data.company_id, default_name="Default Company"
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
         try:
             campaign = await service.create(
-                company_id=data.company_id,
+                company_id=company.id,
                 skillbase_id=data.skillbase_id,
                 name=data.name,
                 description=data.description,
@@ -196,12 +232,12 @@ async def create_campaign(data: CampaignCreate):
                 max_retries=data.max_retries,
                 retry_delay_minutes=data.retry_delay_minutes,
             )
-            
+
             return CampaignResponse.model_validate(campaign)
-        
+
         except CampaignValidationError as e:
             raise HTTPException(status_code=400, detail=str(e))
-        
+
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
@@ -213,11 +249,11 @@ async def get_campaign(campaign_id: UUID):
     """
     async with get_async_db() as db:
         service = CampaignService(db)
-        
+
         try:
             campaign = await service.get_by_id(campaign_id)
             return CampaignResponse.model_validate(campaign)
-        
+
         except CampaignNotFoundError:
             raise HTTPException(status_code=404, detail="Campaign not found")
 
@@ -226,26 +262,26 @@ async def get_campaign(campaign_id: UUID):
 async def update_campaign(campaign_id: UUID, data: CampaignUpdate):
     """
     Обновить Campaign.
-    
+
     ВНИМАНИЕ: Нельзя изменить company_id или skillbase_id после создания.
     """
     async with get_async_db() as db:
         campaign = await db.get(Campaign, campaign_id)
-        
+
         if not campaign:
             raise HTTPException(status_code=404, detail="Campaign not found")
-        
+
         # Обновляем поля
         update_data = data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(campaign, field, value)
-        
+
         try:
             await db.commit()
             await db.refresh(campaign)
-            
+
             return CampaignResponse.model_validate(campaign)
-        
+
         except Exception as e:
             await db.rollback()
             raise HTTPException(status_code=400, detail=str(e))
@@ -255,15 +291,15 @@ async def update_campaign(campaign_id: UUID, data: CampaignUpdate):
 async def delete_campaign(campaign_id: UUID):
     """
     Удалить Campaign.
-    
+
     ВНИМАНИЕ: Удаление Campaign удалит все связанные CallTasks (CASCADE).
     """
     async with get_async_db() as db:
         campaign = await db.get(Campaign, campaign_id)
-        
+
         if not campaign:
             raise HTTPException(status_code=404, detail="Campaign not found")
-        
+
         await db.delete(campaign)
         await db.commit()
 
@@ -275,16 +311,16 @@ async def upload_call_list(
 ):
     """
     Загрузить список контактов для Campaign.
-    
+
     Поддерживаемые форматы: CSV (.csv), Excel (.xlsx, .xls)
-    
+
     Обязательные колонки:
     - phone_number: номер телефона
-    
+
     Опциональные колонки:
     - name или contact_name: имя контакта
     - Любые дополнительные поля сохраняются в contact_data (JSONB)
-    
+
     Возвращает:
     - total: всего строк в файле
     - created: успешно созданных задач
@@ -292,26 +328,26 @@ async def upload_call_list(
     """
     async with get_async_db() as db:
         service = CampaignService(db)
-        
+
         try:
             # Читаем файл
             content = await file.read()
-            
+
             # Загружаем список
             result = await service.upload_call_list(
                 campaign_id=campaign_id,
                 file_content=content,
                 filename=file.filename or "upload.csv",
             )
-            
+
             return CallListUploadResponse(**result)
-        
+
         except CampaignNotFoundError:
             raise HTTPException(status_code=404, detail="Campaign not found")
-        
+
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
-        
+
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
@@ -320,21 +356,21 @@ async def upload_call_list(
 async def start_campaign(campaign_id: UUID):
     """
     Запустить Campaign.
-    
+
     Валидация:
     - Campaign не должна быть уже запущена
     - Campaign должна иметь задачи (total_tasks > 0)
     """
     async with get_async_db() as db:
         service = CampaignService(db)
-        
+
         try:
             campaign = await service.start(campaign_id)
             return CampaignResponse.model_validate(campaign)
-        
+
         except CampaignNotFoundError:
             raise HTTPException(status_code=404, detail="Campaign not found")
-        
+
         except CampaignValidationError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
@@ -343,16 +379,61 @@ async def start_campaign(campaign_id: UUID):
 async def pause_campaign(campaign_id: UUID):
     """
     Поставить Campaign на паузу.
-    
+
     Останавливает обработку новых задач немедленно.
     Текущие активные звонки завершатся.
     """
     async with get_async_db() as db:
         service = CampaignService(db)
-        
+
         try:
             campaign = await service.pause(campaign_id)
             return CampaignResponse.model_validate(campaign)
-        
+
+        except CampaignNotFoundError:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+
+
+@router.post("/{campaign_id}/resume", response_model=CampaignResponse)
+async def resume_campaign(campaign_id: UUID):
+    """Продолжить Campaign (paused -> running)."""
+    async with get_async_db() as db:
+        service = CampaignService(db)
+
+        try:
+            campaign = await service.resume(campaign_id)
+            return CampaignResponse.model_validate(campaign)
+
+        except CampaignNotFoundError:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+
+        except CampaignValidationError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{campaign_id}/stop", response_model=CampaignResponse)
+async def stop_campaign(campaign_id: UUID):
+    """Остановить Campaign (running/paused -> completed)."""
+    async with get_async_db() as db:
+        service = CampaignService(db)
+
+        try:
+            campaign = await service.stop(campaign_id)
+            return CampaignResponse.model_validate(campaign)
+
+        except CampaignNotFoundError:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+
+
+@router.get("/{campaign_id}/stats", response_model=CampaignStatsResponse)
+async def get_campaign_stats(campaign_id: UUID):
+    """Получить статистику Campaign (для dashboard/страницы кампании)."""
+    async with get_async_db() as db:
+        service = CampaignService(db)
+
+        try:
+            stats = await service.get_stats(campaign_id)
+            return CampaignStatsResponse(**stats)
+
         except CampaignNotFoundError:
             raise HTTPException(status_code=404, detail="Campaign not found")
